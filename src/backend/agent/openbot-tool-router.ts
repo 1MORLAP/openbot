@@ -20,6 +20,7 @@ import { OPENBOT_BROWSER_NAMESPACE } from "../browser-tools";
 import type { ChannelService } from "../channel-service";
 import type { MailboxStore } from "../mailbox-store";
 import { type AppServerRequest, type DynamicToolCallParams, isRecord } from "../protocol";
+import { AgentInterruptTool } from "./agent-interrupt-tool";
 import type { AgentMemories } from "./agent-memories";
 import type { AttachmentGateway } from "./attachment-gateway";
 import type { AttentionRegistry } from "./attention-registry";
@@ -52,6 +53,12 @@ export interface OpenBotToolRouterHooks {
   updateAgent(input: UpdateAgentInput): Promise<AgentSummary>;
   setAvatar(agentId: string, image: AvatarImageInput | null): Promise<AgentSummary>;
   emitError(code: string, error: unknown, agentId?: string): void;
+  /** True while the provider runs a turn for this agent, a context compaction included. */
+  runsTurn(agentId: string): boolean;
+  /** `false` when the turn no longer runs or `mayStop` refuses, so no stop was sent. */
+  interrupt(agentId: string, turnId: string, mayStop: () => boolean): Promise<boolean>;
+  /** Epoch milliseconds from the turn lifecycle; null when this process has not seen the event. */
+  turnActivity(agentId: string, turnId: string | null): { startedAt: number | null; lastEventAt: number | null };
 }
 
 export interface OpenBotToolRouterOptions {
@@ -99,6 +106,7 @@ export class OpenBotToolRouter {
   readonly #sidebarLayout: AgentSidebar | null;
   readonly #localSkillTools?: () => LocalSkillTools;
   readonly #hooks: OpenBotToolRouterHooks;
+  readonly #interruptTool: AgentInterruptTool;
 
   constructor(options: OpenBotToolRouterOptions) {
     this.#store = options.store;
@@ -118,6 +126,18 @@ export class OpenBotToolRouter {
     this.#sidebarLayout = options.sidebarLayout;
     this.#localSkillTools = options.localSkillTools;
     this.#hooks = options.hooks;
+    this.#interruptTool = new AgentInterruptTool({
+      store: options.store,
+      mailbox: options.mailbox,
+      mailboxSync: options.mailboxSync,
+      conversation: options.conversation,
+      channels: options.channels,
+      drain: options.drain,
+      hooks: {
+        listAgents: () => options.hooks.listAgents(),
+        interrupt: (agentId, turnId, mayStop) => options.hooks.interrupt(agentId, turnId, mayStop),
+      },
+    });
   }
 
   async handle(client: AgentClient, request: AppServerRequest): Promise<void> {
@@ -300,24 +320,31 @@ export class OpenBotToolRouter {
     }
 
     if (params.tool === "list_agents") {
+      // A delivery that is starting holds no turn yet, and a channel turn runs on a thread of its own.
+      const unresolved = new Set(this.#mailbox.unresolvedDeliveries().map(({ delivery }) => delivery.recipientAgentId));
       const agents = this.#hooks.listAgents().map((agent) => {
-        const queue = this.#mailbox.listQueue(agent.id);
+        const deliveries = this.#mailbox.listQueue(agent.id).deliveries;
+        const queuedMessages = deliveries.filter((delivery) => delivery.status === "queued").length;
+        const working = this.#hooks.runsTurn(agent.id) || unresolved.has(agent.id);
+        const activeTurnId = this.#conversation.workingSnapshot(agent.id)?.activeTurnId ?? null;
+        const { startedAt, lastEventAt } = this.#hooks.turnActivity(agent.id, activeTurnId);
+        // A restart loses the provider clock, so the newest message for the agent stands in for it.
+        const lastActivity = deliveries.reduce(
+          (latest, delivery) => Math.max(latest, Date.parse(delivery.createdAt) || 0),
+          Math.max(lastEventAt ?? 0, startedAt ?? 0),
+        );
         return {
           id: agent.id,
           name: agent.name,
           title: agent.title,
           description: agent.description,
-          status: this.#conversation.workingSnapshot(agent.id)?.activeTurnId
-            ? "working"
-            : queue.deliveries.some((delivery) => delivery.status === "queued")
-              ? "queued"
-              : "ready",
+          status: working ? "working" : queuedMessages > 0 ? "queued" : "ready",
+          queuedMessages,
+          ...(working && startedAt !== null ? { turnStartedAt: new Date(startedAt).toISOString() } : {}),
+          ...(lastActivity > 0 ? { lastActivityAt: new Date(lastActivity).toISOString() } : {}),
         };
       });
-      return {
-        success: true,
-        contentItems: [{ type: "inputText", text: JSON.stringify({ agents }) }],
-      };
+      return openBotToolResult({ agents });
     }
 
     if (params.tool === "list_models") {
@@ -325,6 +352,8 @@ export class OpenBotToolRouter {
       const payload = listModelsPayload(this.#hooks.listModels(), this.#hooks.preferredProvider(), args.provider);
       return { success: true, contentItems: [{ type: "inputText", text: JSON.stringify(payload) }] };
     }
+
+    if (params.tool === "interrupt_agent") return this.#interruptTool.handle(params, senderAgentId);
 
     if (params.tool === "create_agent") {
       const args = createAgentToolSchema.parse(params.arguments);
