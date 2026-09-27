@@ -29,6 +29,7 @@ import { browserIpcHandlers } from "./ipc/browser-handlers";
 import { channelMemoryIpcHandlers } from "./ipc/channel-memory-handlers";
 import { channelRoutineIpcHandlers } from "./ipc/channel-routine-handlers";
 import { computerUseIpcHandlers } from "./ipc/computer-use-handlers";
+import { customAgentIpcHandlers } from "./ipc/custom-agent-handlers";
 import { customProviderIpcHandlers } from "./ipc/custom-provider-handlers";
 import { registerIpcGroups } from "./ipc/define-ipc-group";
 import { dynamicIslandIpcHandlers } from "./ipc/dynamic-island-handlers";
@@ -40,6 +41,7 @@ import { memoryIpcHandlers } from "./ipc/memory-handlers";
 import { notificationIpcHandlers } from "./ipc/notification-handlers";
 import { pluginIpcHandlers } from "./ipc/plugin-handlers";
 import { providerAdminIpcHandlers } from "./ipc/provider-admin-handlers";
+import { providerDetectionIpcHandlers } from "./ipc/provider-detection-handlers";
 import { providerIpcHandlers } from "./ipc/provider-handlers";
 import { routineIpcHandlers } from "./ipc/routine-handlers";
 import { sharedTableIpcHandlers } from "./ipc/shared-table-handlers";
@@ -347,6 +349,9 @@ function registerIpcHandlers({
   skills,
   hostedSites,
   customProviderChanges,
+  customAgentChanges,
+  providerDetection,
+  providerDetectionSettings,
   marketplaceAgents,
   agentTemplates,
   agentImport,
@@ -393,6 +398,8 @@ function registerIpcHandlers({
     ...skillIpcHandlers({ skills, getMainWindow, translate: language.translate }),
     ...hostedSiteIpcHandlers({ hostedSites, getMainWindow, translate: language.translate }),
     ...customProviderIpcHandlers(customProviderChanges),
+    ...customAgentIpcHandlers(customAgentChanges),
+    ...providerDetectionIpcHandlers({ detection: providerDetection, settings: providerDetectionSettings }),
     ...marketplaceAgentIpcHandlers({ marketplaceAgents }),
     ...agentTemplateIpcHandlers({
       agentTemplates,

@@ -11,8 +11,21 @@ import { agentProviderDescriptor } from "@openbot/contracts/ipc";
 import { Text } from "@openbot/ui";
 import { ProviderCodeLoginDialog } from "@openbot/ui/components/ProviderCodeLoginDialog";
 import { ProviderPicker } from "@openbot/ui/components/ProviderPicker";
+import {
+  CustomAgentSettings,
+  type CustomAgentSettingsApi,
+} from "@openbot/ui/features/custom-providers/CustomAgentSettings";
 import { CustomProviderDialog } from "@openbot/ui/features/custom-providers/CustomProviderDialog";
 import { CustomProviderListDialog } from "@openbot/ui/features/custom-providers/CustomProviderListDialog";
+import { CustomProviderPresetDialog } from "@openbot/ui/features/custom-providers/CustomProviderPresetDialog";
+import { localServerProbes, presetSetupProvider } from "@openbot/ui/features/custom-providers/custom-provider-presets";
+import { DetectedProviderSetup } from "@openbot/ui/features/custom-providers/DetectedProviderSetup";
+import { DetectedProviders } from "@openbot/ui/features/custom-providers/DetectedProviders";
+import type {
+  DetectedProvider,
+  DetectedProviderApi,
+  ProviderDetection,
+} from "@openbot/ui/features/custom-providers/detected-providers";
 import { OpenCodeKeyDialog, type ProviderKeyApi } from "@openbot/ui/features/settings/OpenCodeKeyDialog";
 import { createEffect, createSignal, Show, untrack } from "solid-js";
 import type { ProviderCodeLoginApi } from "../../components/provider-code-login-api";
@@ -42,6 +55,12 @@ export interface ProviderSettingsSectionProps {
   onSignInProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
   /** Opens the code sign-in. Absent in the stories, where there is no provider to answer it. */
   onSignInWithCodeProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
+  /** Local model servers and ACP agents that the host found. Without it the section shows no such list. */
+  providerDetection?: ProviderDetection | undefined;
+  detectedProviderApi?: DetectedProviderApi | undefined;
+  takenAgentIds?: readonly string[] | undefined;
+  /** The user's own ACP agents. This computer only, so a joined server's section never has it. */
+  customAgents?: CustomAgentSettingsApi | undefined;
 }
 
 /** The provider list of the computer the agents run on, with its custom endpoint dialogs. */
@@ -54,6 +73,12 @@ export function ProviderSettingsSection(props: ProviderSettingsSectionProps) {
    * first deciding what a saved default means for the four rows beside it.
    */
   const [customSelected, setCustomSelected] = createSignal(false);
+  /**
+   * With a detection API, Add first asks what to add: a local server, any compatible endpoint, or
+   * an ACP agent. Without one, as on a joined server's host, Add opens the endpoint form at once.
+   */
+  const [choosing, setChoosing] = createSignal(false);
+  const [presetFor, setPresetFor] = createSignal<DetectedProvider | null>(null);
   const host = createCustomProviderHostState({
     onAdd: (value) => props.onAddCustomProvider?.(value),
     onDelete: (id) => props.onDeleteCustomProvider?.(id),
@@ -84,15 +109,34 @@ export function ProviderSettingsSection(props: ProviderSettingsSectionProps) {
         onUpdateProvider={props.onUpdateProvider}
         onConnectProvider={props.onConnectProvider}
         onInstallProvider={props.onInstallProvider}
-        onAddCustomProvider={props.onAddCustomProvider ? host.openForm : undefined}
+        onAddCustomProvider={
+          props.onAddCustomProvider ? (props.detectedProviderApi ? () => setChoosing(true) : host.openForm) : undefined
+        }
         onSelectCustomProvider={props.onAddCustomProvider ? () => setCustomSelected(true) : undefined}
         onManageCustomProviders={props.onAddCustomProvider ? host.openList : undefined}
         onSignInProvider={props.onSignInProvider}
         onSignInWithCodeProvider={props.onSignInWithCodeProvider}
         menuMount={props.selectMount}
+        detected={
+          <Show when={props.providerDetection}>
+            {(detection) => (
+              <Show when={props.detectedProviderApi}>
+                {(api) => (
+                  <DetectedProviders
+                    detection={detection()}
+                    api={api()}
+                    takenProviderIds={customProviders().map((provider) => provider.id)}
+                    takenAgentIds={props.takenAgentIds}
+                    onSaved={host.showSaved}
+                  />
+                )}
+              </Show>
+            )}
+          </Show>
+        }
       />
       {/* The outcome is shown where the user is looking. While the list is open the section behind
-          it is hidden from assistive technology, so a status left here could not be read. */}
+        it is hidden from assistive technology, so a status left here could not be read. */}
       <Show when={host.state.manageOpen ? null : host.state.note}>
         {(message) => (
           <Text tone="muted" variant="caption" role="status">
@@ -118,6 +162,30 @@ export function ProviderSettingsSection(props: ProviderSettingsSectionProps) {
           onClose={host.closeList}
         />
       </Show>
+      <Show when={props.detectedProviderApi}>
+        {(api) => (
+          <>
+            <CustomProviderPresetDialog
+              open={choosing()}
+              probes={localServerProbes(props.providerDetection)}
+              onChoose={(preset) => {
+                setChoosing(false);
+                setPresetFor(presetSetupProvider(preset, props.providerDetection));
+              }}
+              onCancel={() => setChoosing(false)}
+            />
+            <DetectedProviderSetup
+              provider={presetFor()}
+              api={api()}
+              takenProviderIds={customProviders().map((provider) => provider.id)}
+              takenAgentIds={props.takenAgentIds}
+              onClose={() => setPresetFor(null)}
+              onSaved={host.showSaved}
+            />
+          </>
+        )}
+      </Show>
+      <Show when={props.customAgents}>{(api) => <CustomAgentSettings api={api()} />}</Show>
     </div>
   );
 }

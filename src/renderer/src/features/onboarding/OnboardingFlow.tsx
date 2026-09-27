@@ -2,7 +2,7 @@ import type { AgentModelId, AgentProviderId, AppSetupState, AvatarHue, DesktopPl
 import { ArrowUp, Button, Plus, toast } from "@openbot/ui";
 import { AgentAvatar } from "@openbot/ui/features/agents/AgentAvatar";
 import { useText } from "@openbot/ui/text";
-import { createMemo, createSignal, createUniqueId, For, Match, Show, Switch } from "solid-js";
+import { createEffect, createMemo, createSignal, createUniqueId, For, Match, Show, Switch, untrack } from "solid-js";
 import { ComputerUseSetup } from "../computer-use/ComputerUseSetup";
 import { createSetupProviders, SetupProviderPicker, type SetupProviderProps } from "./SetupProviderPicker";
 
@@ -14,6 +14,8 @@ export interface OnboardingFlowProps extends SetupProviderProps {
    * names the endpoint the user just described when they chose their own.
    */
   onSave: (provider: AgentProviderId, model: AgentModelId | null) => Promise<void>;
+  /** Runs when the provider step is shown. First run scans once, so the host ignores a repeat. */
+  onProviderStepShown?: () => void;
 }
 
 type OnboardingStep = "meet" | "computer" | "jobs";
@@ -47,6 +49,12 @@ export function OnboardingFlow(props: OnboardingFlowProps) {
   const [screenElement, setScreenElement] = createSignal<HTMLElement | undefined>();
   const [saving, setSaving] = createSignal(false);
   const providers = createSetupProviders(props);
+  createEffect(
+    () => step() === "meet",
+    (shown) => {
+      if (shown) untrack(() => props.onProviderStepShown?.());
+    },
+  );
   const avatarVariants = createOnboardingAvatarVariants();
 
   const showsProviderSetup = () =>

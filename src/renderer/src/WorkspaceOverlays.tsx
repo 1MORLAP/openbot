@@ -1,12 +1,15 @@
 import type { CentralAuthUser, ServerSummary } from "@openbot/contracts/ipc";
 import { MCP_SERVERS_CAPABILITY } from "@openbot/contracts/ipc";
+import type { CustomAgentSettingsApi } from "@openbot/ui/features/custom-providers/CustomAgentSettings";
 import { currentText } from "@openbot/ui/text";
 import { createMemo, Loading, Show } from "solid-js";
 import { appPort } from "./app-port";
 import { useAuth } from "./features/account/account-context";
 import { useAgents } from "./features/agents/agents-context";
 import { useConversationController } from "./features/conversation/conversation-controller-context";
+import { useCustomAgents } from "./features/custom-agents/custom-agents-context";
 import { useCustomProviders } from "./features/custom-providers/custom-providers-context";
+import { useProviderDetection } from "./features/custom-providers/provider-detection-context";
 import type { ServerStorageOptions } from "./features/files/ServerStoragePanel";
 import { canManageStorage, serverHasStorage } from "./features/files/storage-usage";
 import { useSetup } from "./features/onboarding/onboarding-context";
@@ -401,6 +404,17 @@ function AppSettings(props: AccountProps) {
     hostCustomProviders,
   } = useProviders();
   const localEndpoints = useCustomProviders();
+  const localAgents = useCustomAgents();
+  const detection = useProviderDetection();
+  /** A custom agent is a command on this computer, so only the local host lists or runs one. */
+  const customAgents: CustomAgentSettingsApi = {
+    get agents() {
+      return localAgents.customAgents();
+    },
+    save: localAgents.saveCustomAgent,
+    remove: localAgents.deleteCustomAgent,
+    check: localAgents.checkCustomAgent,
+  };
   const local = () => activeServer()?.kind === "local";
   /**
    * The providers of the computer the agents run on: this one, or the host of a joined server the
@@ -450,6 +464,17 @@ function AppSettings(props: AccountProps) {
         customProviders={endpoints()?.customProviders()}
         onAddCustomProvider={endpoints()?.saveCustomProvider}
         onDeleteCustomProvider={endpoints()?.deleteCustomProvider}
+        customAgents={local() ? customAgents : undefined}
+        // The scan is of this computer, so a joined server's tab shows no found list and no Edit.
+        providerDetection={local() ? detection.detection() : undefined}
+        detectedProviderApi={local() ? detection.api : undefined}
+        takenAgentIds={detection.takenAgentIds()}
+        detectionSettings={local() ? (detection.settingsValue() ?? undefined) : undefined}
+        onDetectionSettingsChange={detection.setSettings}
+        detectionSettingsError={detection.settingsError()}
+        onProvidersShown={() => {
+          if (local()) void detection.scan();
+        }}
         providerKeys={providerDownloads() ? providerKeys() : undefined}
         providerHostName={providerAdminServerId() === undefined ? undefined : activeServer()?.name}
         codeLogin={providerDownloads() ? codeLogin : undefined}

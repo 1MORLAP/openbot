@@ -16,22 +16,36 @@ import {
   type CentralAuthIssue,
   type CentralAuthState,
   type CentralAuthUser,
+  type CustomAgentCheckResult,
+  type CustomAgentResult,
+  type CustomAgentSummary,
   type CustomProviderResult,
   type CustomProviderSummary,
+  type DetectedAcpAgent,
+  type DetectedModelServer,
+  type DiscoverModelsResult,
   type ExportResult,
   type HostedSiteSummary,
   isAgentModel,
   isAgentProvider,
   isAppLanguage,
   isApprovalAutomationPreference,
+  isCustomAgentCheckResult,
+  isCustomAgentResult,
+  isCustomAgentSummary,
   isCustomProviderResult,
   isCustomProviderSummary,
+  isDetectedAcpAgent,
+  isDetectedModelServer,
+  isDiscoverModelsResult,
+  isProviderDetectionSettings,
   isRemoteDesktopSetupStatus,
   isRemoteDesktopTestStatus,
   type MobileConnectedDevice,
   type MobileConnectTicket,
   type NotificationOpenedEvent,
   type NotificationPreference,
+  type ProviderDetectionSettings,
   type RemoteDesktopSetupStatus,
   type RemoteDesktopTestStatus,
   UPDATE_PHASES,
@@ -271,6 +285,53 @@ export function decodeCustomProviders(value: unknown): CustomProviderSummary[] {
 
 export function decodeCustomProviderResult(value: unknown): CustomProviderResult {
   if (!isCustomProviderResult(value)) throw new Error("Invalid custom provider response.");
+  return value;
+}
+
+/** Fails closed on the whole list, like `decodeCustomProviders`: a scan row never carries a key. */
+export function decodeDetectedModelServers(value: unknown): DetectedModelServer[] {
+  if (!Array.isArray(value) || !value.every(isDetectedModelServer)) {
+    throw new Error("Invalid model server list response.");
+  }
+  return value;
+}
+
+/** Fails closed on the whole list: a scan row never carries an environment value. */
+export function decodeDetectedAcpAgents(value: unknown): DetectedAcpAgent[] {
+  if (!Array.isArray(value) || !value.every(isDetectedAcpAgent)) {
+    throw new Error("Invalid agent list response.");
+  }
+  return value;
+}
+
+/**
+ * The guard, as for the endpoints: it is the assertion that a summary carries no environment value,
+ * and it fails closed on the whole list.
+ */
+export function decodeCustomAgents(value: unknown): CustomAgentSummary[] {
+  if (!Array.isArray(value) || !value.every(isCustomAgentSummary)) {
+    throw new Error("Invalid custom agent list response.");
+  }
+  return value;
+}
+
+export function decodeCustomAgentResult(value: unknown): CustomAgentResult {
+  if (!isCustomAgentResult(value)) throw new Error("Invalid custom agent response.");
+  return value;
+}
+
+export function decodeCustomAgentCheckResult(value: unknown): CustomAgentCheckResult {
+  if (!isCustomAgentCheckResult(value)) throw new Error("Invalid agent check response.");
+  return value;
+}
+
+export function decodeDiscoverModelsResult(value: unknown): DiscoverModelsResult {
+  if (!isDiscoverModelsResult(value)) throw new Error("Invalid model list response.");
+  return value;
+}
+
+export function decodeProviderDetectionSettings(value: unknown): ProviderDetectionSettings {
+  if (!isProviderDetectionSettings(value)) throw new Error("Invalid detection settings response.");
   return value;
 }
 

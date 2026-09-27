@@ -1,6 +1,7 @@
 import { useText } from "@openbot/ui/text";
 import { Loading, Show } from "solid-js";
 import { useAuth } from "./features/account/account-context";
+import { useProviderDetection } from "./features/custom-providers/provider-detection-context";
 import { useSetup } from "./features/onboarding/onboarding-context";
 import { useSetupProviderProps } from "./features/onboarding/setup-provider-props";
 import { useServerSelection } from "./features/servers/server-selection";
@@ -37,6 +38,7 @@ export function AppAccessGate() {
   // Setup is ungated: it only ever runs against this computer, so there is no remote server to hide
   // the endpoints from. Settings gates on `activeServer()`; see `WorkspaceOverlays.tsx`.
   const setupProviders = useSetupProviderProps();
+  const detection = useProviderDetection();
   const { joinRemoteDuringSetup } = useServerSelection();
 
   return (
@@ -69,6 +71,7 @@ export function AppAccessGate() {
                       state={setup.setupState() ?? { completed: false, preferredProvider: null, preferredModel: null }}
                       platform={platform.appInfo()?.platform ?? "darwin"}
                       onSave={setup.saveSetup}
+                      onProviderStepShown={detection.scanOnce}
                     />
                   </Loading>
                 }

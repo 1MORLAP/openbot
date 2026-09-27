@@ -19,12 +19,14 @@ import {
   type ComputerUseState,
   type ConversationMessage,
   type ConversationSnapshot,
+  type CustomAgentSummary,
   type CustomProviderSummary,
   composedCustomModelId,
   createMcpServerId,
   DEFAULT_AGENT_ACCESS,
   DEFAULT_APPROVAL_AUTOMATION_PREFERENCE,
   DEFAULT_DYNAMIC_ISLAND_PREFERENCE,
+  DEFAULT_PROVIDER_DETECTION_SETTINGS,
   type DirectConversationSnapshot,
   type DirectMessageRealtimeEvent,
   type DirectTypingRealtimeEvent,
@@ -39,6 +41,7 @@ import {
   type OpenBotDesktopApi,
   type OpenSharedFileInput,
   type OpenWorkspaceFileInput,
+  type ProviderDetectionSettings,
   type QueueDelivery,
   type QueueSnapshot,
   type RemoteDesktopSession,
@@ -55,6 +58,7 @@ import {
   SIDEBAR_UNASSIGNED_SECTION_ID,
   type SidebarLayoutSnapshot,
   type SteerQueuedMessageInput,
+  sameCustomProviderOrigin,
   type TeamPresenceSnapshot,
   type UpdateAgentInput,
   type UpdateQueuedMessageInput,
@@ -215,6 +219,8 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
   const usage = clone(options.usage ?? STORY_USAGE);
   let agentCounter = agents.length;
   let hostedSites = clone(STORY_HOSTED_SITES);
+  let detectionSettings: ProviderDetectionSettings = clone(DEFAULT_PROVIDER_DETECTION_SETTINGS);
+  let customAgents: CustomAgentSummary[] = [];
   // The same two endpoints the model-picker stories invent, so preview shows one list everywhere.
   let customProviders = clone(
     options.customProviders ?? [
@@ -568,6 +574,70 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         customProviders = customProviders.filter((provider) => provider.id !== id);
         emitAgentEvent({ type: "status", status: clone(agentStatus) });
         return { providers: clone(customProviders), restart: "restarted" };
+      },
+      /** The same keep rule as the real store: a key that is not sent stays, but not for a new origin. */
+      update: async (input) => {
+        const stored = customProviders.find((provider) => provider.id === input.id);
+        if (!stored) throw new Error("This endpoint is not saved.");
+        const keepsKey = input.apiKey === undefined && stored.hasApiKey;
+        if (keepsKey && !sameCustomProviderOrigin(stored.baseUrl, input.baseUrl)) {
+          throw new Error("Enter the API key again for the new address.");
+        }
+        customProviders = customProviders.map((provider) =>
+          provider.id === input.id
+            ? {
+                id: input.id,
+                name: input.name,
+                baseUrl: input.baseUrl,
+                hasApiKey: input.apiKey !== undefined || keepsKey,
+                models: input.models.map((model) => ({ id: model.id, name: model.name })),
+              }
+            : provider,
+        );
+        emitAgentEvent({ type: "status", status: clone(agentStatus) });
+        return { providers: clone(customProviders), restart: "restarted" };
+      },
+    },
+    // Preview starts no process: the names are kept, the values are dropped, and a check answers
+    // for the command without running it.
+    customAgents: {
+      list: async () => clone(customAgents),
+      save: async (input) => {
+        const summary: CustomAgentSummary = {
+          id: input.id,
+          name: input.name,
+          command: input.command,
+          args: [...input.args],
+          envNames: input.env.map((entry) => entry.name),
+          resolvedCommand: input.command.startsWith("/") ? input.command : `/usr/local/bin/${input.command}`,
+        };
+        customAgents = customAgents.some((agent) => agent.id === input.id)
+          ? customAgents.map((agent) => (agent.id === input.id ? summary : agent))
+          : [...customAgents, summary];
+        emitAgentEvent({ type: "status", status: clone(agentStatus) });
+        return { agents: clone(customAgents), restart: "restarted" };
+      },
+      delete: async ({ id }) => {
+        customAgents = customAgents.filter((agent) => agent.id !== id);
+        emitAgentEvent({ type: "status", status: clone(agentStatus) });
+        return { agents: clone(customAgents), restart: "restarted" };
+      },
+      check: async (input) => ({
+        agentName: input.command.split("/").pop() ?? input.command,
+        version: null,
+        protocolVersion: 1,
+        capabilities: ["loadSession"],
+      }),
+    },
+    // Preview reaches no local server, so a scan finds nothing and a model list is empty.
+    providerDetection: {
+      scanModelServers: async () => [],
+      scanAgents: async () => [],
+      discoverModels: async () => ({ models: [] }),
+      getSettings: async () => clone(detectionSettings),
+      setSettings: async (settings) => {
+        detectionSettings = clone(settings);
+        return clone(detectionSettings);
       },
     },
     // Preview has one host, so every server answers from the same providers as this computer.

@@ -1,5 +1,5 @@
 import type { AgentModelOption, AgentSummary, UpdateAgentInput } from "@openbot/contracts/ipc";
-import { defaultProviderModel } from "@openbot/contracts/ipc";
+import { customAgentIdOfModel, defaultProviderModel, PICKER_PROVIDERS } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import type { AgentProvider } from "../agent-client";
 import { type AgentStore, DEFAULT_AGENT_PROVIDER } from "../agent-store";
@@ -88,7 +88,8 @@ export class CustomEndpoints {
    */
   available(): AgentModelOption[] {
     if (this.#released.size === 0) return this.#providers.listModels();
-    return this.#providers.listModels().filter((option) => this.serves(option.id));
+    // A custom agent id can be the same text as an endpoint id. Its models are not the endpoint's.
+    return this.#providers.listModels().filter((option) => option.provider === "acp" || this.serves(option.id));
   }
 
   /**
@@ -154,6 +155,77 @@ export class CustomEndpoints {
   }
 
   /**
+   * Changes one saved endpoint: the agents on a model it no longer lists, the exclusion of its id,
+   * and `persist`, which is the caller's file write, as one change nothing else can interleave with.
+   *
+   * The agents move first, while the kept models are still served, so an agent on a removed model
+   * moves to a kept model of the same endpoint and keeps its provider and thread. The id is then
+   * excluded as for a save: the running process still has the old address and credentials, and
+   * only a process that read this write may serve the endpoint again.
+   */
+  update<T>(providerId: string, removedModelIds: readonly string[], persist: () => Promise<T>): Promise<T> {
+    return this.runExclusive(async () => {
+      await this.#moveOffRemovedModels(providerId, new Set(removedModelIds));
+      const previous = this.#released.get(providerId);
+      this.#revision += 1;
+      const revision = this.#revision;
+      this.#released.set(providerId, revision);
+      this.#hooks.modelsChanged();
+      this.#hooks.stopProfileClients();
+      try {
+        const persisted = await persist();
+        this.#committedRevision = revision;
+        return persisted;
+      } catch (error) {
+        if (previous !== undefined) this.#released.set(providerId, previous);
+        else this.#released.delete(providerId);
+        this.#hooks.modelsChanged();
+        throw error;
+      }
+    });
+  }
+
+  /**
+   * The agents on `providerId/<removed>` go to a kept model of the same endpoint when the catalogue
+   * lists one, then to the fallback a removal uses. Busy agents stop the change only when the move
+   * is a provider switch.
+   */
+  async #moveOffRemovedModels(providerId: string, removed: ReadonlySet<string>): Promise<void> {
+    if (removed.size === 0) return;
+    const prefix = `${providerId}/`;
+    const affected = this.#store
+      .list()
+      .filter(
+        (agent) =>
+          providerForAgent(agent) === "opencode" &&
+          agent.model.startsWith(prefix) &&
+          removed.has(agent.model.slice(prefix.length)),
+      );
+    if (affected.length === 0) return;
+    const remaining = this.available().filter(
+      (option) => !(option.id.startsWith(prefix) && removed.has(option.id.slice(prefix.length))),
+    );
+    const fallback =
+      remaining.find((option) => option.provider === "opencode" && option.id.startsWith(prefix)) ??
+      startingModel("opencode", remaining, this.#hooks.preference()) ??
+      (this.#hooks.providerAvailable(DEFAULT_AGENT_PROVIDER)
+        ? startingModel(DEFAULT_AGENT_PROVIDER, remaining, this.#hooks.preference())
+        : null);
+    if (!fallback) return;
+    if (fallback.provider !== "opencode" && affected.some((agent) => this.#hasWorkInFlight(agent))) {
+      throw new Error(sourceText("error.provider.endpointRemoveBusy"));
+    }
+    for (const agent of affected) {
+      await this.#hooks.applyAgentUpdate({
+        agentId: agent.id,
+        provider: fallback.provider,
+        model: fallback.id,
+        reasoningEffort: fallback.defaultReasoningEffort,
+      });
+    }
+  }
+
+  /**
    * Removes one endpoint: the exclusion, the agents that were on it, and `persist`, which is the
    * caller's file write, as one change nothing else can interleave with.
    *
@@ -186,6 +258,62 @@ export class CustomEndpoints {
         throw error;
       }
     });
+  }
+
+  /**
+   * Saves one custom agent: `persist`, the caller's file write, inside the chain. No agent moves: an
+   * agent on a model the changed agent no longer lists moves to another model of the same agent when
+   * the new process lists its models (`moveAgentsOffUnlistedModels`).
+   */
+  saveCustomAgent<T>(persist: () => Promise<T>): Promise<T> {
+    return this.runExclusive(async () => {
+      // A profile client is a process of its own, started with the agent as it was.
+      this.#hooks.stopProfileClients();
+      return persist();
+    });
+  }
+
+  /**
+   * Removes one custom agent: the agents on it move to another provider, then `persist` writes the
+   * file. The move comes first, as for an endpoint, so no agent is left on a program that is gone.
+   * With nothing to move to, the removal still goes ahead, and those agents ask for a model at their
+   * next turn.
+   */
+  removeCustomAgent<T>(customAgentId: string, persist: () => Promise<T>): Promise<T> {
+    return this.runExclusive(async () => {
+      this.#hooks.stopProfileClients();
+      const affected = this.#store
+        .list()
+        .filter((agent) => providerForAgent(agent) === "acp" && customAgentIdOfModel(agent.model) === customAgentId);
+      const fallback = affected.length > 0 ? this.#builtInFallback() : null;
+      if (fallback) {
+        if (affected.some((agent) => this.#hasWorkInFlight(agent))) {
+          throw new Error(sourceText("error.provider.customAgentRemoveBusy"));
+        }
+        for (const agent of affected) {
+          await this.#hooks.applyAgentUpdate({
+            agentId: agent.id,
+            provider: fallback.provider,
+            model: fallback.id,
+            reasoningEffort: fallback.defaultReasoningEffort,
+          });
+        }
+      }
+      return persist();
+    });
+  }
+
+  /** The model an agent moves to when its custom agent goes: the preferred provider's, then the others'. */
+  #builtInFallback(): AgentModelOption | null {
+    const remaining = this.available();
+    const preference = this.#hooks.preference();
+    const providers = [preference.provider, ...PICKER_PROVIDERS.filter((provider) => provider !== preference.provider)];
+    for (const provider of providers) {
+      if (provider === "acp" || !this.#hooks.providerAvailable(provider)) continue;
+      const model = startingModel(provider, remaining, preference);
+      if (model) return model;
+    }
+    return null;
   }
 
   /**
@@ -270,12 +398,17 @@ export class CustomEndpoints {
    */
   async moveAgentsOffUnlistedModels(provider: AgentProvider): Promise<void> {
     const models = this.available().filter((model) => model.provider === provider);
-    const fallback = models.find((model) => model.id === defaultProviderModel(provider)) ?? models[0];
-    if (!fallback) return;
+    const providerFallback = models.find((model) => model.id === defaultProviderModel(provider)) ?? models[0];
+    if (!providerFallback) return;
     const affected = this.#store
       .list()
       .filter((agent) => providerForAgent(agent) === provider && !models.some((model) => model.id === agent.model));
     for (const agent of affected) {
+      // A custom agent is a program of its own, not a model: an agent moves only to another model of
+      // the same custom agent. One that listed nothing, or did not answer, keeps its model.
+      const fallback =
+        provider === "acp" ? models.find((model) => sameCustomAgent(model.id, agent.model)) : providerFallback;
+      if (!fallback) continue;
       try {
         await this.#hooks.applyAgentUpdate({
           agentId: agent.id,
@@ -300,4 +433,9 @@ export class CustomEndpoints {
       (agent.threadId ? this.#store.database.readConversation(agent.id, agent.threadId).activeTurnId : null);
     return Boolean(active);
   }
+}
+
+function sameCustomAgent(model: string, agentModel: string): boolean {
+  const id = customAgentIdOfModel(model);
+  return id !== null && id === customAgentIdOfModel(agentModel);
 }

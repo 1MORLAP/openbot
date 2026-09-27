@@ -64,7 +64,13 @@ import {
   parseUpdatePreference,
 } from "./app-inputs";
 import { parseBrowserNavigate, parseBrowserOpen, parseVisibility } from "./browser-inputs";
-import { parseDeleteCustomProvider, parseSaveCustomProvider } from "./custom-provider-inputs";
+import { parseCheckCustomAgent, parseDeleteCustomAgent, parseSaveCustomAgent } from "./custom-agent-inputs";
+import {
+  parseDeleteCustomProvider,
+  parseSaveCustomProvider,
+  parseUpdateCustomProvider,
+} from "./custom-provider-inputs";
+import { parseDiscoverModels, parseProviderDetectionSettings } from "./provider-detection-inputs";
 import {
   parseCreateTeamInvite,
   parseHostConfig,
@@ -1037,6 +1043,70 @@ describe("custom provider input parsing", () => {
   });
 });
 
+describe("custom provider update and detection input parsing", () => {
+  const edit = {
+    id: "studio-local",
+    name: "Studio Local",
+    baseUrl: "http://127.0.0.1:11434/v1",
+    models: [{ id: "glm-5-air", name: "GLM 5 Air" }],
+  };
+
+  it("leaves out a blank or absent key and absent headers, which means keep them", () => {
+    expect(parseUpdateCustomProvider(edit)).toEqual(edit);
+    expect(parseUpdateCustomProvider({ ...edit, apiKey: "  " })).toEqual(edit);
+    expect(parseUpdateCustomProvider({ ...edit, apiKey: "sk-new", headers: [] })).toEqual({
+      ...edit,
+      apiKey: "sk-new",
+      headers: [],
+    });
+  });
+
+  it("refuses a null key, because an update cannot clear it", () => {
+    expect(() => parseUpdateCustomProvider({ ...edit, apiKey: null })).toThrowError();
+  });
+
+  it("accepts a saved endpoint ID only in its own form", () => {
+    const input = { baseUrl: edit.baseUrl, apiKey: null, headers: [] };
+    expect(parseDiscoverModels({ ...input, savedProviderId: "studio-local" })).toEqual({
+      ...input,
+      savedProviderId: "studio-local",
+    });
+    expect(() => parseDiscoverModels({ ...input, savedProviderId: "Studio/Local" })).toThrowError(
+      "A provider ID must be",
+    );
+    expect(() => parseDiscoverModels({ ...input, baseUrl: "file:///etc/passwd" })).toThrowError();
+  });
+
+  it("drops blank and repeated detection rows and refuses unsafe ones", () => {
+    const settings = { enabled: true, addresses: [], folders: [], hiddenIds: [] };
+    expect(
+      parseProviderDetectionSettings({
+        ...settings,
+        addresses: [" http://192.168.1.20:11434/v1 ", "", "http://192.168.1.20:11434/v1"],
+        folders: ["~/bin", "  "],
+        hiddenIds: ["models:http://127.0.0.1:1234/v1"],
+      }),
+    ).toEqual({
+      ...settings,
+      addresses: ["http://192.168.1.20:11434/v1"],
+      folders: ["~/bin"],
+      hiddenIds: ["models:http://127.0.0.1:1234/v1"],
+    });
+    for (const unsafe of [
+      { addresses: ["https://user:secret@example.com/v1"] },
+      { addresses: ["file:///etc/passwd"] },
+      { folders: ["bin"] },
+      { folders: ["/bin\u0000x"] },
+      { hiddenIds: ["other:thing"] },
+    ]) {
+      expect(() => parseProviderDetectionSettings({ ...settings, ...unsafe })).toThrowError();
+    }
+    expect(() =>
+      parseProviderDetectionSettings({ ...settings, folders: Array.from({ length: 17 }, (_, index) => `/f${index}`) }),
+    ).toThrowError();
+  });
+});
+
 it("validates the server mute request", () => {
   expect(parseSetServerMuted({ serverId: "local", muted: true })).toEqual({ serverId: "local", muted: true });
   expect(parseSetServerMuted({ serverId: "remote", muted: false })).toEqual({ serverId: "remote", muted: false });
@@ -1111,5 +1181,77 @@ describe("remote desktop setup input", () => {
     });
     for (const input of [null, { action: "approve" }, { serverId: "server-1", action: "start" }])
       expect(() => parseRemoteDesktopTest(input)).toThrow();
+  });
+});
+
+describe("custom agent input parsing", () => {
+  const agent = {
+    id: "goose",
+    name: "Goose",
+    command: "goose",
+    args: ["acp"],
+    env: [
+      { name: "OPENAI_API_KEY", value: null },
+      { name: "GOOSE_DEBUG", value: "" },
+    ],
+  };
+
+  it("keeps a null value, which means keep the saved one, and an empty value", () => {
+    expect(parseSaveCustomAgent(agent)).toEqual(agent);
+    expect(parseSaveCustomAgent({ ...agent, args: undefined, env: undefined })).toEqual({
+      ...agent,
+      args: [],
+      env: [],
+    });
+  });
+
+  it("refuses an ID that could name a built-in provider or split a model ID", () => {
+    for (const id of ["codex", "custom", "acp", "Goose", "goose_2", "goose/2", ""]) {
+      expect(() => parseSaveCustomAgent({ ...agent, id }), id).toThrowError();
+      expect(() => parseDeleteCustomAgent({ id }), id).toThrowError();
+    }
+  });
+
+  it("refuses shell text as the command, and a line break in an argument", () => {
+    for (const command of ["goose; id", "goose acp", "$(id)", "-rf", ""]) {
+      expect(() => parseSaveCustomAgent({ ...agent, command }), command).toThrowError();
+    }
+    expect(() => parseSaveCustomAgent({ ...agent, args: ["acp\nid"] })).toThrowError();
+    expect(() => parseSaveCustomAgent({ ...agent, args: [1] })).toThrowError();
+  });
+
+  it("refuses a bad or repeated environment name, and a value that is not text", () => {
+    for (const env of [
+      [{ name: "1KEY", value: "x" }],
+      [{ name: "KEY=1", value: "x" }],
+      [
+        { name: "KEY", value: "x" },
+        { name: "KEY", value: "y" },
+      ],
+      [{ name: "KEY", value: 1 }],
+      [{ name: "KEY" }],
+    ]) {
+      expect(() => parseSaveCustomAgent({ ...agent, env }), JSON.stringify(env)).toThrowError();
+    }
+  });
+
+  it("does not quote an environment value in its error", () => {
+    const error = (() => {
+      try {
+        parseSaveCustomAgent({ ...agent, env: [{ name: "KEY", value: "sk-secret".repeat(2000) }] });
+      } catch (reason) {
+        return reason;
+      }
+      return null;
+    })();
+    expect(error).toBeInstanceOf(Error);
+    expect(String(error)).not.toContain("sk-secret");
+  });
+
+  it("takes a saved agent ID for a check only in its own form", () => {
+    const check = { command: "goose", args: ["acp"], env: [] };
+    expect(parseCheckCustomAgent(check)).toEqual(check);
+    expect(parseCheckCustomAgent({ ...check, savedAgentId: "goose" })).toEqual({ ...check, savedAgentId: "goose" });
+    expect(() => parseCheckCustomAgent({ ...check, savedAgentId: "../goose" })).toThrowError();
   });
 });

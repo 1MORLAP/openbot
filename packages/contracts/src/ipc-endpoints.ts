@@ -133,10 +133,20 @@ import type {
   SetMessageReactionInput,
 } from "./ipc-conversations";
 import type {
+  CheckCustomAgentInput,
+  CustomAgentCheckResult,
+  CustomAgentResult,
+  CustomAgentSummary,
+  DeleteCustomAgentInput,
+  DetectedAcpAgent,
+  SaveCustomAgentInput,
+} from "./ipc-custom-agents";
+import type {
   CustomProviderResult,
   CustomProviderSummary,
   DeleteCustomProviderInput,
   SaveCustomProviderInput,
+  UpdateCustomProviderInput,
 } from "./ipc-custom-providers";
 import type {
   DynamicIslandAction,
@@ -172,6 +182,12 @@ import type {
   TestMcpServerInput,
 } from "./ipc-mcp-servers";
 import type { NotificationOpenedEvent, NotificationPreference } from "./ipc-notifications";
+import type {
+  DetectedModelServer,
+  DiscoverModelsInput,
+  DiscoverModelsResult,
+  ProviderDetectionSettings,
+} from "./ipc-provider-detection";
 import type {
   AcknowledgeFailedTurnInput,
   CancelQueuedMessageInput,
@@ -462,6 +478,27 @@ export const IPC_ENDPOINTS = {
     list: request<undefined, CustomProviderSummary[]>()("custom-providers:list"),
     save: request<SaveCustomProviderInput, CustomProviderResult>()("custom-providers:save"),
     delete: request<DeleteCustomProviderInput, CustomProviderResult>()("custom-providers:delete"),
+    // This computer only. `providerAdmin` has no edit, so a joined admin cannot reach a stored key
+    // through a changed address.
+    update: request<UpdateCustomProviderInput, CustomProviderResult>()("custom-providers:update"),
+  },
+  // Local model servers and ACP agents on this computer. Main makes every request, and a scan sends
+  // no key. A joined host is never scanned.
+  providerDetection: {
+    scanModelServers: request<undefined, DetectedModelServer[]>()("provider-detection:scan-model-servers"),
+    discoverModels: request<DiscoverModelsInput, DiscoverModelsResult>()("provider-detection:discover-models"),
+    getSettings: request<undefined, ProviderDetectionSettings>()("provider-detection:get-settings"),
+    setSettings: request<ProviderDetectionSettings, ProviderDetectionSettings>()("provider-detection:set-settings"),
+    // Looks for known agent command names only. It starts no file.
+    scanAgents: request<undefined, DetectedAcpAgent[]>()("provider-detection:scan-agents"),
+  },
+  // The user's own ACP agents, on this computer only: no Team API route and no `providerAdmin` entry.
+  // Environment values travel only towards main.
+  customAgents: {
+    list: request<undefined, CustomAgentSummary[]>()("custom-agents:list"),
+    save: request<SaveCustomAgentInput, CustomAgentResult>()("custom-agents:save"),
+    delete: request<DeleteCustomAgentInput, CustomAgentResult>()("custom-agents:delete"),
+    check: request<CheckCustomAgentInput, CustomAgentCheckResult>()("custom-agents:check"),
   },
   // The providers of the computer that runs the agents. `providers`, `providerRuntimes` and
   // `customProviders` reach this computer only; these take the server, so a remote admin reaches the

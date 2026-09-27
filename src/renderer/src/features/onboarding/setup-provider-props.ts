@@ -1,6 +1,7 @@
 import { useProviders } from "../../providers";
 import { useAgents } from "../agents/agents-context";
 import { useCustomProviders } from "../custom-providers/custom-providers-context";
+import { useProviderDetection } from "../custom-providers/provider-detection-context";
 import { providerKeyApi } from "../settings/provider-key-api";
 import type { SetupProviderProps } from "./SetupProviderPicker";
 
@@ -16,6 +17,7 @@ export function useSetupProviderProps(local: () => boolean = () => true): SetupP
   const { agentStatus } = useAgents();
   const providers = useProviders();
   const endpoints = useCustomProviders();
+  const detection = useProviderDetection();
   /** Managed runtimes: a row downloads its CLI. Without them a row opens a sign-in guide. */
   const downloads = () => local() && providers.providerRuntimeDownloadsAvailable();
   const guides = () => local() && !providers.providerRuntimeDownloadsAvailable();
@@ -69,6 +71,16 @@ export function useSetupProviderProps(local: () => boolean = () => true): SetupP
     },
     get onDeleteCustomProvider() {
       return local() ? endpoints.deleteCustomProvider : undefined;
+    },
+    // Detection looks only at this computer, so a joined server gets no found rows.
+    get providerDetection() {
+      return local() ? detection.detection() : undefined;
+    },
+    get detectedProviderApi() {
+      return local() ? detection.firstRunApi : undefined;
+    },
+    get takenAgentIds() {
+      return local() ? detection.takenAgentIds() : undefined;
     },
   };
 }

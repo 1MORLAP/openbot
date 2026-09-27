@@ -13,6 +13,8 @@ import { ProviderCodeLoginDialog } from "@openbot/ui/components/ProviderCodeLogi
 import { freeModelsReady, ProviderPicker, type ProviderPickerOption } from "@openbot/ui/components/ProviderPicker";
 import { CustomProviderDialog } from "@openbot/ui/features/custom-providers/CustomProviderDialog";
 import { CustomProviderListDialog } from "@openbot/ui/features/custom-providers/CustomProviderListDialog";
+import { DetectedProviders } from "@openbot/ui/features/custom-providers/DetectedProviders";
+import type { DetectedProviderApi, ProviderDetection } from "@openbot/ui/features/custom-providers/detected-providers";
 import { OpenCodeKeyDialog, type ProviderKeyApi } from "@openbot/ui/features/settings/OpenCodeKeyDialog";
 import { useText } from "@openbot/ui/text";
 import { createEffect, createMemo, createSignal, onCleanup, Show, untrack } from "solid-js";
@@ -53,6 +55,15 @@ export interface SetupProviderProps {
    * choice beside the built-in providers, and a duplicate ID is a field error before the round trip.
    */
   customProviders?: readonly CustomProviderSummary[] | undefined;
+  /**
+   * Local model servers and ACP agents that the host found. Without it, or when a scan finds
+   * nothing, the step shows no such list. Setup does not scan again, so there is no scan control.
+   */
+  providerDetection?: ProviderDetection | undefined;
+  /** Saves, hides and checks what the scan found. Without it the step shows no such list. */
+  detectedProviderApi?: DetectedProviderApi | undefined;
+  /** Saved custom agent IDs, so a found agent's ID is checked before the round trip. */
+  takenAgentIds?: readonly string[] | undefined;
 }
 
 /** The choice a screen opens with. A review opens with the saved one; the first run with none. */
@@ -65,8 +76,9 @@ export interface SetupProviderChoice {
   customModel: () => AgentModelId | null;
 }
 
+// A custom agent is not a first provider: it is added from the detected list or in Settings.
 const SETUP_PROVIDERS: Array<{ id: AgentProviderId; name: string; description: string }> =
-  AGENT_PROVIDER_DESCRIPTORS.map((descriptor) => ({
+  AGENT_PROVIDER_DESCRIPTORS.filter((descriptor) => descriptor.id !== "acp").map((descriptor) => ({
     id: descriptor.id,
     name: descriptor.displayName,
     description: descriptor.onboardingDescription,
@@ -220,15 +232,7 @@ export function createSetupProviders(props: SetupProviderProps, initial?: SetupP
   const host = createCustomProviderHostState({
     onAdd: (value) => props.onAddCustomProvider?.(value),
     onDelete: (id) => props.onDeleteCustomProvider?.(id),
-    onSaved: (value) => {
-      // The endpoint the user just described is what they came here to use, so the step selects the
-      // custom row rather than leaving the choice on whichever provider connected first, and its
-      // first model becomes the one a new agent starts on. OpenCode names a custom model by its
-      // endpoint, so the id is composed here rather than looked up in a catalog it has yet to list.
-      selectCustomProvider();
-      const [firstModel] = value.models;
-      if (firstModel) setCustomModel(`${value.id}/${firstModel.id}`);
-    },
+    onSaved: selectSavedEndpoint,
     onRemoved: (id) => {
       // The save reads these two to decide whether to send a model, so a model of an endpoint that
       // is gone would be stored on the first agent. The remaining endpoints keep the row selected.
@@ -255,6 +259,32 @@ export function createSetupProviders(props: SetupProviderProps, initial?: SetupP
     }
     return null;
   }
+
+  /**
+   * The endpoint the user just described is what they came here to use, so the step selects the
+   * custom row rather than leaving the choice on whichever provider connected first, and its first
+   * model becomes the one a new agent starts on. OpenCode names a custom model by its endpoint, so
+   * the id is composed here rather than looked up in a catalog it has yet to list.
+   */
+  function selectSavedEndpoint(value: SaveCustomProviderInput): void {
+    selectCustomProvider();
+    const [firstModel] = value.models;
+    if (firstModel) setCustomModel(`${value.id}/${firstModel.id}`);
+  }
+
+  /** A found server that the user saves is selected like one added with the form. */
+  const detectedApi = createMemo((): DetectedProviderApi | undefined => {
+    const api = props.detectedProviderApi;
+    if (!api) return undefined;
+    return {
+      ...api,
+      save: async (provider, value) => {
+        const restart = await api.save(provider, value);
+        if (value.kind === "models") selectSavedEndpoint(value.value);
+        return restart;
+      },
+    };
+  });
 
   /** OpenCode runs every custom endpoint, so choosing them chooses that provider along with them. */
   function selectCustomProvider(): void {
@@ -452,6 +482,7 @@ export function createSetupProviders(props: SetupProviderProps, initial?: SetupP
     customSelected,
     /** The model to save with the custom row: the one described here, else one saved before. */
     customModel: () => customModel() ?? firstSavedCustomModel(),
+    detectedApi,
     selectedProviderConnected,
     /** A provider action's error, or the message of a connection that ended without success. */
     error: visibleError,
@@ -538,6 +569,33 @@ export function SetupProviderPicker(props: SetupProviderPickerProps) {
         }}
         onChooseMoreProvider={props.providers.chooseProvider}
         onChooseMoreCustom={props.providers.chooseMoreCustom}
+        detected={
+          // In setup a scan that found nothing is noise, so the list goes away. Hidden rows keep it:
+          // Show hidden is the only way back to them in this step.
+          <Show
+            when={
+              source().providerDetection?.scanning ||
+              source().providerDetection?.found.length ||
+              source().providerDetection?.hidden
+                ? source().providerDetection
+                : undefined
+            }
+          >
+            {(detection) => (
+              <Show when={props.providers.detectedApi()}>
+                {(api) => (
+                  <DetectedProviders
+                    detection={detection()}
+                    api={api()}
+                    takenProviderIds={(source().customProviders ?? []).map((provider) => provider.id)}
+                    takenAgentIds={source().takenAgentIds}
+                    disabled={props.disabled}
+                  />
+                )}
+              </Show>
+            )}
+          </Show>
+        }
         onChange={props.providers.chooseProvider}
       />
       <Show when={source().onAddCustomProvider}>

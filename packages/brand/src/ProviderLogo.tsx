@@ -1,7 +1,7 @@
 import type { JSX } from "@solidjs/web";
 import { CLAUDE_PATH } from "./provider-logo-shape";
 
-export type ProviderLogoVariant = "codex" | "claude" | "grok" | "opencode" | "antigravity";
+export type ProviderLogoVariant = "codex" | "claude" | "grok" | "opencode" | "antigravity" | "acp";
 
 export interface ProviderLogoProps {
   provider: ProviderLogoVariant;
@@ -15,10 +15,17 @@ const CODEX_PATH =
 const GEMINI_PATH =
   "M11.04 19.32Q12 21.51 12 24q0-2.49.93-4.68.96-2.19 2.58-3.81t3.81-2.55Q21.51 12 24 12q-2.49 0-4.68-.93a12.3 12.3 0 0 1-3.81-2.58 12.3 12.3 0 0 1-2.58-3.81Q12 2.49 12 0q0 2.49-.96 4.68-.93 2.19-2.55 3.81a12.3 12.3 0 0 1-3.81 2.58Q2.49 12 0 12q2.49 0 4.68.96 2.19.93 3.81 2.55t2.55 3.81";
 
+// OpenBot's own mark for a custom ACP agent: a command prompt. No third-party mark stands for all of
+// them.
+const ACP_PROMPT_PATH =
+  "M4.3 6.3a1 1 0 0 1 1.4 0l5 5a1 1 0 0 1 0 1.4l-5 5a1 1 0 1 1-1.4-1.4L8.6 12 4.3 7.7a1 1 0 0 1 0-1.4Z";
+const ACP_CURSOR_PATH = "M12 17a1 1 0 0 1 1-1h7a1 1 0 1 1 0 2h-7a1 1 0 0 1-1-1Z";
+
 export function ProviderLogo(props: ProviderLogoProps) {
   const isClaude = () => props.provider === "claude";
   const isGrok = () => props.provider === "grok";
   const isGemini = () => props.provider === "antigravity";
+  const isAcp = () => props.provider === "acp";
 
   return (
     <svg
@@ -26,7 +33,7 @@ export function ProviderLogo(props: ProviderLogoProps) {
       viewBox={
         props.provider === "opencode"
           ? "0 0 240 300"
-          : isGrok() || isGemini()
+          : isGrok() || isGemini() || isAcp()
             ? "0 0 24 24"
             : isClaude()
               ? "0 0 248 248"
@@ -48,6 +55,11 @@ export function ProviderLogo(props: ProviderLogoProps) {
         </>
       ) : isGemini() ? (
         <path d={GEMINI_PATH} />
+      ) : isAcp() ? (
+        <>
+          <path d={ACP_PROMPT_PATH} />
+          <path d={ACP_CURSOR_PATH} />
+        </>
       ) : (
         <path d={isClaude() ? CLAUDE_PATH : CODEX_PATH} />
       )}
