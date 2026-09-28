@@ -34,6 +34,9 @@ All notable changes to OpenBot will be documented here. The project follows
   Your draft stays when you reconnect.
 - Show the OpenBot logo and an animated loading bar on the sign-in background while the web app
   loads. Before, the page showed only the text "Loading OpenBot…".
+- Ask before an import adds an agent whose name is already on the server, for example when you
+  import the same export again. The dialog names the agents and says that each copy is a separate
+  agent. Before, only an info icon next to the name showed this.
 
 ### Fixed
 
@@ -61,6 +64,10 @@ All notable changes to OpenBot will be documented here. The project follows
   could show a failure icon until the next capture.
 - Reload the web app one time when an update removed the files that it needs. Before, the first
   open after an update could show "This page could not load".
+- Import an agent when one of its files is already in the workspace, for example two files whose
+  names differ only in case on macOS. The import keeps both files, saves the second one as
+  `name (2).ext`, and shows a warning. A file that it cannot write is skipped with a warning. Before,
+  the agent was not imported.
 
 ## [0.23.0] - 2026-09-27
 
