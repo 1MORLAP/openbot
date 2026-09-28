@@ -117,6 +117,8 @@ export function createConversationViewScope(props: ConversationProps) {
     setSettingsPanelWidth,
     browserPanelWidth,
     setBrowserPanelWidth,
+    hiddenAwaitingReplyIds,
+    setHiddenAwaitingReplyIds,
     resources,
   } = controller;
   /**
@@ -228,9 +230,14 @@ export function createConversationViewScope(props: ConversationProps) {
     setComposerErrorForTarget,
     clearChatErrors,
   } = composer;
-  const queue = createQueueStore({ props });
+  const queue = createQueueStore({ props, hiddenAwaitingReplyIds });
   const { activeDeliveries, awaitingReplies, orderedQueuedDeliveries, presentedQueueDeliveries, queuePanelVisible } =
     queue;
+  const dismissAwaitingReplies = () => {
+    setHiddenAwaitingReplyIds((ids) => new Set([...ids, ...awaitingReplies().map((row) => row.id)]));
+    // The close button leaves with the block, so the focus goes back to the composer.
+    setComposerFocusRequest((value) => value + 1);
+  };
   const activity = createActivityStore({
     props,
     activeDeliveries,
@@ -1058,6 +1065,7 @@ export function createConversationViewScope(props: ConversationProps) {
     currentChatError,
     currentChatConversationKey,
     dismissCurrentChatErrors,
+    dismissAwaitingReplies,
     clearComposerError,
     setComposerErrorForTarget,
     clearChatErrors,
