@@ -42,7 +42,8 @@ function AuthenticatedStack() {
   const singleChat = panes.split ? () => "open-chat" : false;
   // The plain interface opens pages at full height: a dimmed strip above a sheet is a grey band
   // on e-ink, and the tablet shell has room for the whole page.
-  const sheetDetents = useSimpleInterface() ? [1] : [0.85];
+  const simple = useSimpleInterface();
+  const sheetDetents = simple ? [1] : [0.85];
 
   return (
     <ChatNavigationGateContext value={navigationGate}>
@@ -266,7 +267,8 @@ function AuthenticatedStack() {
                 contentStyle: { backgroundColor: sheetBackground },
                 headerShown: false,
                 scrollEdgeEffects: { top: "hidden", bottom: "soft" },
-                presentation: "formSheet",
+                // The plain interface opens Settings as a page in the chat pane, not a sheet over it.
+                presentation: simple ? "card" : "formSheet",
                 sheetAllowedDetents: sheetDetents,
                 sheetGrabberVisible: true,
               }}

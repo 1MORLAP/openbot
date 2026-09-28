@@ -10,7 +10,7 @@ export function SettingsContent({ children }: PropsWithChildren) {
   return (
     <SheetScrollView
       scrollEdgeEffect={false}
-      contentContainerClassName="gap-7 px-4 pb-safe-offset-5 pt-5"
+      contentContainerClassName="gap-6 px-4 pb-safe-offset-6 pt-4"
       keyboardDismissMode="interactive"
       keyboardShouldPersistTaps="handled"
     >
@@ -27,22 +27,26 @@ export function SettingsSection({
   return (
     <View className="gap-2">
       {title ? (
-        <Typography type="body-xs" className="px-4 text-grouped-secondary">
+        <Typography type="body-xs" weight="bold" className="px-2 tracking-openbot-wide uppercase">
           {title}
         </Typography>
       ) : null}
-      <ListGroup variant="secondary" className="overflow-hidden rounded-grouped bg-grouped p-0 shadow-none">
+      {/* Outlined cards read as groups on every theme, including e-ink where the fill is white. */}
+      <ListGroup
+        variant="secondary"
+        className="overflow-hidden rounded-grouped border border-border bg-grouped p-0 shadow-none"
+      >
         {Children.map(Children.toArray(children), (child, index) =>
           child ? (
             <View>
-              {index > 0 ? <View className="ml-4 h-px bg-grouped-border" /> : null}
+              {index > 0 ? <View className="h-px bg-border" /> : null}
               {child}
             </View>
           ) : null,
         )}
       </ListGroup>
       {footer ? (
-        <Typography.Paragraph type="body-xs" className="px-4 text-grouped-secondary">
+        <Typography.Paragraph type="body-xs" className="px-2 text-grouped-secondary">
           {footer}
         </Typography.Paragraph>
       ) : null}
@@ -92,7 +96,7 @@ export function SettingsRow({
       {trailing ? (
         <View className="max-w-[60%] shrink">{trailing}</View>
       ) : onPress && disclosure ? (
-        <ChevronRight size={18} color={muted} strokeWidth={1.5} />
+        <ChevronRight size={20} color={muted} strokeWidth={2} />
       ) : null}
     </>
   );
@@ -105,12 +109,12 @@ export function SettingsRow({
         void haptics.impact("soft");
         onPress();
       }}
-      className="min-h-12 flex-row items-center gap-3 px-4 py-3"
+      className="min-h-14 flex-row items-center gap-3 px-4 py-3"
       style={({ pressed }) => ({ opacity: disabled ? 0.45 : pressed ? 0.6 : 1 })}
     >
       {content}
     </ListGroup.Item>
   ) : (
-    <View className="min-h-12 flex-row items-center gap-3 px-4 py-3">{content}</View>
+    <View className="min-h-14 flex-row items-center gap-3 px-4 py-3">{content}</View>
   );
 }
