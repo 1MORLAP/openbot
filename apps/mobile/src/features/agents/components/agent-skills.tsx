@@ -3,10 +3,8 @@ import type { InstalledSkill } from "@openbot/contracts/ipc";
 import type { MobileTranslate } from "@openbot/i18n/mobile";
 import { type QueryKey, useQueryClient } from "@tanstack/react-query";
 import { Typography } from "heroui-native";
-import { useThemeColor } from "heroui-native/hooks";
-import { Trash2 } from "lucide-react-native";
 import { useState } from "react";
-import { Alert, Pressable } from "react-native";
+import { Alert } from "react-native";
 import { useUniwind } from "uniwind";
 import { SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
 import { type MobileAgent, useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
@@ -109,33 +107,39 @@ export function AgentSkills({
     );
   }
 
+  const managed = skills.filter((skill) => manage && skill.origin !== "workspace");
+  const readOnly = skills.filter((skill) => !managed.includes(skill));
   return (
     <>
-      <SettingsSection>
-        {skills.map((skill) =>
-          manage && skill.origin !== "workspace" ? (
-            <ManagedSkillRow
-              key={skill.skillId}
-              skill={skill}
-              busy={busy.has(skill.skillId)}
-              removing={removing.has(skill.skillId)}
-              onEnabledChange={(enabled) => setEnabled(skill, enabled)}
-              onUninstall={() => confirmUninstall(skill)}
-            />
-          ) : (
-            <SkillRow key={skill.skillId} skill={skill} />
-          ),
-        )}
-        {skills.length === 0 ? (
-          <SettingsRow>
-            <Typography.Paragraph className="text-grouped-secondary">
-              {t("mobile.agent.info.noSkills")}
-            </Typography.Paragraph>
-          </SettingsRow>
-        ) : null}
-      </SettingsSection>
+      {managed.map((skill) => (
+        <ManagedSkill
+          key={skill.skillId}
+          skill={skill}
+          busy={busy.has(skill.skillId)}
+          removing={removing.has(skill.skillId)}
+          onEnabledChange={(enabled) => setEnabled(skill, enabled)}
+          onUninstall={() => confirmUninstall(skill)}
+        />
+      ))}
+      {readOnly.length || !skills.length ? (
+        <SettingsSection>
+          {readOnly.map((skill) => (
+            <SettingsRow key={skill.skillId} supportingText={skillMeta(skill, t, true)}>
+              <Typography.Paragraph numberOfLines={1}>{skill.name}</Typography.Paragraph>
+              <SkillDescription skill={skill} />
+            </SettingsRow>
+          ))}
+          {!skills.length ? (
+            <SettingsRow>
+              <Typography.Paragraph className="text-grouped-secondary">
+                {t("mobile.agent.info.noSkills")}
+              </Typography.Paragraph>
+            </SettingsRow>
+          ) : null}
+        </SettingsSection>
+      ) : null}
       {error ? (
-        <Typography.Paragraph accessibilityRole="alert" className="text-danger-text">
+        <Typography.Paragraph accessibilityRole="alert" className="px-4 text-danger-text">
           {error}
         </Typography.Paragraph>
       ) : null}
@@ -143,17 +147,8 @@ export function AgentSkills({
   );
 }
 
-function SkillRow({ skill }: { skill: InstalledSkill }) {
-  const { t } = useText();
-  return (
-    <SettingsRow supportingText={skillMeta(skill, t, true)}>
-      <Typography.Paragraph numberOfLines={1}>{skill.name}</Typography.Paragraph>
-      <SkillDescription skill={skill} />
-    </SettingsRow>
-  );
-}
-
-function ManagedSkillRow({
+/** One group per skill: the native switch with its details, then the destructive action, as on the routine page. */
+function ManagedSkill({
   skill,
   busy,
   removing,
@@ -168,34 +163,30 @@ function ManagedSkillRow({
 }) {
   const { t } = useText();
   const { theme } = useUniwind();
-  const danger = useThemeColor("danger");
   return (
-    <SettingsRow
-      disabled={removing}
-      supportingText={removing ? t("mobile.agent.skill.uninstalling") : skillMeta(skill, t, false)}
-      trailing={
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t("mobile.agent.skill.uninstallNamed", { name: skill.name })}
-          accessibilityState={{ disabled: busy }}
-          disabled={busy}
-          hitSlop={8}
-          onPress={onUninstall}
+    <SettingsSection>
+      <SettingsRow supportingText={skillMeta(skill, t, false)}>
+        <Host
+          matchContents={{ vertical: true }}
+          style={{ width: "100%" }}
+          colorScheme={theme === "dark" ? "dark" : "light"}
         >
-          <Trash2 size={18} color={String(danger)} />
-        </Pressable>
-      }
-    >
-      <Host
-        matchContents={{ vertical: true }}
-        style={{ width: "100%" }}
-        colorScheme={theme === "dark" ? "dark" : "light"}
+          {/* Older hosts send no `enabled`; such a skill is on. */}
+          <Switch label={skill.name} value={skill.enabled !== false} disabled={busy} onValueChange={onEnabledChange} />
+        </Host>
+        <SkillDescription skill={skill} />
+      </SettingsRow>
+      <SettingsRow
+        disclosure={false}
+        disabled={busy}
+        accessibilityLabel={t("mobile.agent.skill.uninstallNamed", { name: skill.name })}
+        onPress={onUninstall}
       >
-        {/* Older hosts send no `enabled`; such a skill is on. */}
-        <Switch label={skill.name} value={skill.enabled !== false} disabled={busy} onValueChange={onEnabledChange} />
-      </Host>
-      <SkillDescription skill={skill} />
-    </SettingsRow>
+        <Typography.Paragraph className="text-danger-text">
+          {t(removing ? "mobile.agent.skill.uninstalling" : "mobile.agent.skill.uninstall")}
+        </Typography.Paragraph>
+      </SettingsRow>
+    </SettingsSection>
   );
 }
 

@@ -398,10 +398,17 @@ vi.mock("@/features/settings/components/settings-content", () => ({
     children,
     onPress,
     trailing,
-  }: PropsWithChildren<{ onPress?: () => void; trailing?: import("react").ReactNode }>) =>
+    disabled,
+    accessibilityLabel,
+  }: PropsWithChildren<{
+    onPress?: () => void;
+    trailing?: import("react").ReactNode;
+    disabled?: boolean;
+    accessibilityLabel?: string;
+  }>) =>
     onPress ? (
       <div>
-        <button type="button" onClick={onPress}>
+        <button type="button" aria-label={accessibilityLabel} disabled={disabled} onClick={onPress}>
           {children}
         </button>
         {trailing}
