@@ -267,7 +267,27 @@ function buildSunshine(source: string, version: string, commit: string): void {
 function buildMoonlight(source: string): void {
   execFileSync("npm", ["ci"], { cwd: source, stdio: "inherit" });
   execFileSync("npm", ["run", "build"], { cwd: source, stdio: "inherit" });
-  execFileSync("cargo", ["build", "--locked", "--release"], { cwd: source, stdio: "inherit" });
+  execFileSync("cargo", ["build", "--locked", "--release"], {
+    cwd: source,
+    env: moonlightCargoEnvironment(),
+    stdio: "inherit",
+  });
+}
+
+/**
+ * On an Intel Mac, moonlight-common-c's Reed-Solomon code picks its SIMD path with
+ * `__builtin_cpu_supports`, which reads `__cpu_model` from the compiler runtime. rustc links with
+ * `-nodefaultlibs`, so `libclang_rt.osx.a` is not on the link line and `streamer` fails with an
+ * undefined `___cpu_model`. The ARM64 build never calls the x86 check.
+ */
+function moonlightCargoEnvironment(): NodeJS.ProcessEnv {
+  if (platform !== "darwin" || architecture !== "x64") return process.env;
+  const resourceDirectory = execFileSync("xcrun", ["clang", "-print-resource-dir"], { encoding: "utf8" }).trim();
+  const runtimeLibrary = join(resourceDirectory, "lib", "darwin", "libclang_rt.osx.a");
+  accessSync(runtimeLibrary);
+  const variable = "CARGO_TARGET_X86_64_APPLE_DARWIN_RUSTFLAGS";
+  const flags = [process.env[variable], `-C link-arg=${runtimeLibrary}`].filter(Boolean).join(" ");
+  return { ...process.env, [variable]: flags };
 }
 
 async function applyOpenBotPatch(source: string, entry: { path: string; sha256: string }): Promise<void> {
