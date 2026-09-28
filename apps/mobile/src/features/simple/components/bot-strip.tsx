@@ -90,17 +90,14 @@ export function BotStrip() {
   return (
     <View
       className="items-center border-r border-border bg-background"
-      style={{ width: BOT_STRIP_WIDTH, paddingTop: insets.top + 10, paddingBottom: insets.bottom + 10 }}
+      style={{ width: BOT_STRIP_WIDTH, paddingTop: insets.top + 4, paddingBottom: insets.bottom + 10 }}
     >
       <StripButton
         label={t("mobile.workspace.shell.chats")}
         selected={!openChat}
         onPress={() => router.navigate("/connected")}
       >
-        <View
-          className="items-center justify-center rounded-full border border-border"
-          style={{ width: AVATAR, height: AVATAR }}
-        >
+        <View className="items-center justify-center" style={{ width: AVATAR, height: AVATAR }}>
           <List color={foreground} size={22} strokeWidth={2} />
         </View>
       </StripButton>

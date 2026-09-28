@@ -139,7 +139,7 @@ function HeaderButton({ label, onPress, children }: { label: string; onPress: ()
         void haptics.selection();
         onPress();
       }}
-      className="size-10 items-center justify-center rounded-full border border-border"
+      className="size-10 items-center justify-center rounded-full"
       style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
     >
       {children}
@@ -239,7 +239,7 @@ export function SimpleChatList() {
 
   return (
     <View className="flex-1 bg-background">
-      <View className="flex-row items-center gap-2 px-4 pb-3" style={{ paddingTop: insets.top + 12 }}>
+      <View className="flex-row items-center gap-1 px-4 pb-2" style={{ paddingTop: insets.top + 2 }}>
         <View className="min-w-0 flex-1">
           <Typography.Heading type="h3" numberOfLines={1}>
             {t("mobile.workspace.shell.chats")}
@@ -249,7 +249,7 @@ export function SimpleChatList() {
           </Typography.Paragraph>
         </View>
         <HeaderButton label={t("mobile.workspace.shell.search")} onPress={() => router.push("/search-agents")}>
-          <Search color={foreground} size={20} strokeWidth={2} />
+          <Search color={foreground} size={22} strokeWidth={2} />
         </HeaderButton>
         <MenuView
           actions={[
@@ -272,7 +272,7 @@ export function SimpleChatList() {
             accessible
             accessibilityRole="button"
             accessibilityLabel={t("mobile.agent.home.chatOptions")}
-            className="size-10 items-center justify-center rounded-full border border-border"
+            className="size-10 items-center justify-center rounded-full"
           >
             <Plus color={foreground} size={22} strokeWidth={2} />
           </View>
@@ -320,10 +320,10 @@ export function SimpleChatList() {
       >
         <AccountButton />
         <HeaderButton label={t("mobile.workspace.shell.servers")} onPress={openDrawer}>
-          <Layers3 color={foreground} size={20} strokeWidth={2} />
+          <Layers3 color={foreground} size={22} strokeWidth={2} />
         </HeaderButton>
         <HeaderButton label={t("mobile.workspace.shell.settings")} onPress={() => router.push("/settings")}>
-          <Settings color={foreground} size={20} strokeWidth={2} />
+          <Settings color={foreground} size={22} strokeWidth={2} />
         </HeaderButton>
       </View>
     </View>

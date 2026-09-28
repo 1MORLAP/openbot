@@ -38,12 +38,15 @@ function IconButton({
   onPress,
   disabled = false,
   filled = false,
+  bare = false,
   children,
 }: {
   label: string;
   onPress: () => void;
   disabled?: boolean;
   filled?: boolean;
+  /** No outline: a plain icon, as in the header. */
+  bare?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -57,7 +60,7 @@ function IconButton({
         void haptics.selection();
         onPress();
       }}
-      className={`items-center justify-center rounded-full border-2 ${filled ? "border-foreground bg-foreground" : "border-border bg-background"}`}
+      className={`items-center justify-center rounded-full ${filled ? "bg-foreground" : ""} ${bare ? "" : `border-2 ${filled ? "border-foreground" : "border-border bg-background"}`}`}
       style={({ pressed }) => ({
         width: BUTTON_SIZE,
         height: BUTTON_SIZE,
@@ -337,11 +340,11 @@ export function SimpleChatView(props: ChatViewProps) {
     <GestureDetector gesture={swipeBack}>
       <View className="flex-1 bg-background">
         <View
-          className="flex-row items-center gap-3 border-b border-border px-3 pb-3"
-          style={{ paddingTop: insets.top + 10 }}
+          className="flex-row items-center gap-3 border-b border-border px-3 pb-2"
+          style={{ paddingTop: insets.top + 2 }}
         >
           {showBack ? (
-            <IconButton label={t("common.back")} onPress={leaveChat}>
+            <IconButton bare label={t("common.back")} onPress={leaveChat}>
               <ArrowLeft color={colors.foreground} size={22} strokeWidth={2} />
             </IconButton>
           ) : null}
@@ -374,8 +377,9 @@ export function SimpleChatView(props: ChatViewProps) {
             }
             onPress={openInfo}
             filled={detailsOpen}
+            bare
           >
-            <Info color={detailsOpen ? colors.background : colors.foreground} size={20} strokeWidth={2} />
+            <Info color={detailsOpen ? colors.background : colors.foreground} size={22} strokeWidth={2} />
           </IconButton>
         </View>
 
