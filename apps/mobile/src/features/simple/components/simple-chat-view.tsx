@@ -51,7 +51,7 @@ function IconButton({
         void haptics.selection();
         onPress();
       }}
-      className={`size-13 items-center justify-center rounded-xl border-2 ${filled ? "border-foreground bg-foreground" : "border-border bg-background"}`}
+      className={`items-center justify-center rounded-full border-2 ${filled ? "border-foreground bg-foreground" : "border-border bg-background"}`}
       style={({ pressed }) => ({ width: 52, height: 52, opacity: disabled ? 0.4 : pressed ? 0.6 : 1 })}
     >
       {children}
@@ -102,7 +102,7 @@ function MessageRow({
             </Typography.Paragraph>
           ) : null}
           {message.attachments?.map((file) => (
-            <View key={file.id} className="flex-row items-center gap-2 rounded-lg border-2 border-border px-3 py-2">
+            <View key={file.id} className="flex-row items-center gap-2 rounded-2xl border border-border px-3 py-2">
               <Paperclip color={colors.foreground} size={18} strokeWidth={2} />
               <Typography.Paragraph type="body-sm" numberOfLines={1}>
                 {file.name}
@@ -110,7 +110,7 @@ function MessageRow({
             </View>
           ))}
           {message.body.trim() ? (
-            <View className={user ? "max-w-[85%] rounded-2xl bg-foreground px-4 py-3" : "w-full"}>
+            <View className={user ? "max-w-[85%] rounded-3xl rounded-br-md bg-foreground px-4 py-3" : "w-full"}>
               <ChatMarkdown
                 body={message.body}
                 color={user ? colors.background : colors.foreground}
@@ -130,7 +130,7 @@ function MessageRow({
     }
     case "plan":
       return (
-        <View className="my-2 gap-2 rounded-xl border-2 border-border p-4">
+        <View className="my-2 gap-2 rounded-3xl border border-border p-4">
           <Typography.Paragraph weight="bold">{message.heading ?? t("mobile.chat.plan.title")}</Typography.Paragraph>
           {message.steps.map((step) => (
             <Typography.Paragraph key={step.id} weight={step.state === "active" ? "bold" : "normal"}>
@@ -181,7 +181,11 @@ function MessageRow({
         )
         .join(", ");
       return (
-        <Typography.Paragraph type="body-sm" align="center" className="py-2">
+        <Typography.Paragraph
+          type="body-sm"
+          align="center"
+          className="my-1.5 self-center rounded-full border border-border px-4 py-1"
+        >
           {label}{" "}
           <Typography.Paragraph type="body-sm" weight="bold">
             {names}
@@ -305,7 +309,7 @@ export function SimpleChatView(props: ChatViewProps) {
   return (
     <View className="flex-1 bg-background">
       <View
-        className="flex-row items-center gap-3 border-b-2 border-border px-3 pb-3"
+        className="flex-row items-center gap-3 border-b border-border px-3 pb-3"
         style={{ paddingTop: insets.top + 10 }}
       >
         {split ? null : (
@@ -325,7 +329,7 @@ export function SimpleChatView(props: ChatViewProps) {
             size={40}
           />
         ) : (
-          <View className="size-10 items-center justify-center rounded-xl border-2 border-border">
+          <View className="size-10 items-center justify-center rounded-full border-2 border-foreground">
             <Hash color={colors.foreground} size={20} strokeWidth={2.2} />
           </View>
         )}
@@ -383,7 +387,12 @@ export function SimpleChatView(props: ChatViewProps) {
         ListFooterComponent={
           props.hasOlder ? (
             <View className="items-center py-3">
-              <Button variant="outline" isDisabled={props.olderLoading} onPress={props.loadOlder}>
+              <Button
+                variant="outline"
+                className="rounded-full"
+                isDisabled={props.olderLoading}
+                onPress={props.loadOlder}
+              >
                 <Button.Label>
                   {props.olderLoading
                     ? t("mobile.chat.history.loadingOlder")
@@ -403,7 +412,7 @@ export function SimpleChatView(props: ChatViewProps) {
         </View>
       ) : null}
       {activity || queued || error ? (
-        <View className="flex-row items-center gap-3 border-t-2 border-border px-4 py-2">
+        <View className="mx-3 mb-1 flex-row items-center gap-3 rounded-full border border-border py-1.5 pr-1.5 pl-4">
           <Typography.Paragraph
             type="body-sm"
             weight="semibold"
@@ -416,13 +425,14 @@ export function SimpleChatView(props: ChatViewProps) {
             <Button
               variant="outline"
               size="sm"
+              className="rounded-full"
               onPress={() => router.push({ pathname: "/queued-messages", params: { chat: props.queue?.chatId ?? "" } })}
             >
               <Button.Label>{t("mobile.workspace.shell.queued", { count: queued })}</Button.Label>
             </Button>
           ) : null}
           {canStop ? (
-            <Button variant="outline" size="sm" onPress={stop}>
+            <Button variant="outline" size="sm" className="rounded-full" onPress={stop}>
               <Square color={colors.foreground} size={14} strokeWidth={2.5} fill={colors.foreground} />
               <Button.Label>{t("mobile.workspace.shell.stop")}</Button.Label>
             </Button>
@@ -431,10 +441,7 @@ export function SimpleChatView(props: ChatViewProps) {
       ) : null}
 
       {readOnly ? null : (
-        <View
-          className="flex-row items-end gap-2 border-t-2 border-border px-3 pt-3"
-          style={{ paddingBottom: insets.bottom + 12 }}
-        >
+        <View className="flex-row items-end gap-2 px-3 pt-2" style={{ paddingBottom: insets.bottom + 12 }}>
           {dictation.available ? (
             <IconButton
               label={listening ? t("mobile.chat.composer.stopDictation") : t("mobile.chat.composer.dictate")}
@@ -458,8 +465,8 @@ export function SimpleChatView(props: ChatViewProps) {
                   : t("mobile.chat.composer.ask", { name: target.name })
             }
             placeholderTextColor={colors.foreground}
-            className="min-w-0 flex-1 rounded-xl border-2 border-border px-3 py-3 text-body text-foreground"
-            style={{ minHeight: 52, maxHeight: 220, textAlignVertical: "top" }}
+            className="min-w-0 flex-1 rounded-3xl border-2 border-border px-5 py-3 text-body text-foreground"
+            style={{ minHeight: 52, maxHeight: 220, borderRadius: 26, textAlignVertical: "top" }}
             accessibilityLabel={t("mobile.chat.composer.ask", { name: target.name })}
           />
           <IconButton

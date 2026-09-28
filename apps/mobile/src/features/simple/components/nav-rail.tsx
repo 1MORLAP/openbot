@@ -31,7 +31,7 @@ function RailButton({
         void haptics.selection();
         onPress();
       }}
-      className={`w-16 items-center gap-1 rounded-xl py-2 ${active ? "bg-foreground" : ""}`}
+      className={`w-16 items-center gap-1 rounded-2xl py-2 ${active ? "bg-foreground" : ""}`}
       style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
     >
       <Icon color={String(active ? background : foreground)} size={26} strokeWidth={2} />

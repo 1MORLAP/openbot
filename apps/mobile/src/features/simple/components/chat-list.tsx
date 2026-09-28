@@ -49,8 +49,8 @@ function Row({
         void haptics.selection();
         onPress();
       }}
-      className={`flex-row items-center gap-3 border-b border-border px-4 py-3 ${selected ? "border-l-8 border-l-foreground bg-surface-secondary" : ""}`}
-      style={({ pressed }) => ({ minHeight: 72, opacity: pressed ? 0.7 : 1 })}
+      className={`mx-2 my-0.5 flex-row items-center gap-3 rounded-2xl border-2 px-3 py-2.5 ${selected ? "border-foreground bg-surface-secondary" : "border-transparent"}`}
+      style={({ pressed }) => ({ minHeight: 68, opacity: pressed ? 0.7 : 1 })}
     >
       {leading}
       <View className="min-w-0 flex-1 gap-0.5">
@@ -111,7 +111,7 @@ function ChannelRow({ channel, serverId, selected }: { channel: ChannelSummary; 
       onPress={() => router.push({ pathname: "/channel/[channelId]", params: { channelId: channel.id, serverId } })}
       leading={
         <View
-          className="items-center justify-center rounded-xl border-2 border-border bg-background"
+          className="items-center justify-center rounded-full border-2 border-foreground bg-background"
           style={{ width: AVATAR, height: AVATAR }}
         >
           <Hash color={String(foreground)} size={22} strokeWidth={2.2} />
@@ -135,7 +135,7 @@ function HeaderButton({ label, onPress, children }: { label: string; onPress: ()
         void haptics.selection();
         onPress();
       }}
-      className="size-12 items-center justify-center rounded-xl"
+      className="size-12 items-center justify-center rounded-full border border-border"
       style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
     >
       {children}
@@ -205,10 +205,7 @@ export function SimpleChatList({ phone = false }: { phone?: boolean }) {
 
   return (
     <View className="flex-1 bg-background">
-      <View
-        className="flex-row items-center gap-2 border-b-2 border-border px-4 pb-3"
-        style={{ paddingTop: insets.top + 12 }}
-      >
+      <View className="flex-row items-center gap-2 px-4 pb-3" style={{ paddingTop: insets.top + 12 }}>
         <View className="min-w-0 flex-1">
           <Typography.Heading type="h3" numberOfLines={1}>
             {t("mobile.workspace.shell.chats")}
@@ -243,7 +240,7 @@ export function SimpleChatList({ phone = false }: { phone?: boolean }) {
             accessible
             accessibilityRole="button"
             accessibilityLabel={t("mobile.agent.home.chatOptions")}
-            className="size-12 items-center justify-center rounded-xl"
+            className="size-12 items-center justify-center rounded-full border border-border"
           >
             <Plus color={foreground} size={26} strokeWidth={2} />
           </View>
@@ -260,7 +257,7 @@ export function SimpleChatList({ phone = false }: { phone?: boolean }) {
         contentContainerStyle={{ paddingBottom: insets.bottom + 16, flexGrow: 1 }}
         renderItem={({ item }) =>
           item.kind === "section" ? (
-            <View className="border-b border-border bg-surface-secondary px-4 pt-4 pb-1.5">
+            <View className="px-5 pt-4 pb-1">
               <Typography type="body-xs" weight="bold" className="tracking-openbot-wide uppercase">
                 {item.name}
               </Typography>
