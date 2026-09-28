@@ -9,11 +9,11 @@ class DisplayZoomModule : Module() {
 
     Constants(
       "zooms" to DisplayZoom.ZOOMS.toList(),
-      "defaultZoom" to DisplayZoom.DEFAULT_ZOOM,
+      "defaultZoom" to DisplayZoom.defaultZoom,
     )
 
     Function("getZoom") {
-      val context = appContext.reactContext ?: return@Function DisplayZoom.DEFAULT_ZOOM
+      val context = appContext.reactContext ?: return@Function DisplayZoom.defaultZoom
       DisplayZoom.zoom(context)
     }
 

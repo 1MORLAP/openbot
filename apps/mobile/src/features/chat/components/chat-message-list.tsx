@@ -188,7 +188,7 @@ function ChatBubble({
  * Matches the desktop marker. An absent mark means a request: that is what a host older than the
  * mark reports, and what every message stored before it meant.
  */
-function exchangeLabel(exchange: AgentExchangeSummary, t: MobileTranslate) {
+export function exchangeLabel(exchange: AgentExchangeSummary, t: MobileTranslate) {
   if (exchange.expectsReply === false)
     return exchange.direction === "outgoing"
       ? t("mobile.chat.exchange.informed")
@@ -294,7 +294,7 @@ const ROUTINE_MARKER_ICONS: Record<RoutineMarkerEvent, LucideIcon> = {
   cancelled: CirclePause,
 };
 
-function RoutineMarkerRow({
+export function RoutineMarkerRow({
   message,
   muted,
 }: {

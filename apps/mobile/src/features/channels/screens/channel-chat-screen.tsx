@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatView } from "@/features/chat/components/chat-view";
 import { useQuestionPrompt } from "@/features/chat/components/use-question-prompt";
 import { projectChannelMessages } from "@/features/chat/model/chat-messages";
+import { SimpleChatView } from "@/features/simple/components/simple-chat-view";
+import { useSimpleInterface } from "@/features/workspace/components/split-layout";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import { useText } from "@/shared/lib/text";
 import { useChannels } from "../components/use-channels";
@@ -70,8 +72,9 @@ function ChannelChat({ channelId, serverId }: { channelId: string; serverId: str
     canSend,
     (agentId, input) => state.store.respondToPrompt(serverId, channelId, agentId, input),
   );
+  const ChatSurface = useSimpleInterface() ? SimpleChatView : ChatView;
   return (
-    <ChatView
+    <ChatSurface
       target={{
         kind: "channel",
         id: channelId,

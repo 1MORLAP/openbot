@@ -7,13 +7,14 @@ import { useCSSVariable } from "uniwind";
 import { AgentPinTransitionProvider } from "@/features/agents/components/agent-pin-transition";
 import { ChatNavigationGateContext } from "@/features/agents/components/chat-link-pressable";
 import { createChatNavigationGate } from "@/features/agents/model/chat-navigation-gate";
-import { AgentListPane } from "@/features/agents/screens/connected-screen";
 import { useMobileSession } from "@/features/auth/context/mobile-session-context";
 import { MessageActionsProvider } from "@/features/chat/context/message-actions-context";
 import { QueuedMessagesProvider } from "@/features/chat/context/queued-messages-context";
 import { AppDrawerShell } from "@/features/servers/components/app-drawer-shell";
+import { SimpleChatList } from "@/features/simple/components/chat-list";
+import { NavRail } from "@/features/simple/components/nav-rail";
 import { DetailsPane, useOpenChat } from "@/features/workspace/components/details-pane";
-import { usePaneLayout } from "@/features/workspace/components/split-layout";
+import { ShellWidthContext, usePaneLayout, useSimpleInterface } from "@/features/workspace/components/split-layout";
 import { MobileWorkspaceProvider } from "@/features/workspace/context/mobile-workspace-context";
 import { useEinkMode } from "@/shared/lib/eink";
 import { isIOS } from "@/shared/lib/platform";
@@ -33,17 +34,25 @@ function AuthenticatedStack() {
   const eink = useEinkMode();
   const slide = eink ? "none" : "slide_from_right";
   const fade = eink ? "none" : "fade";
-  // Bots | Chat | Details on wide screens. The stack stays in the same place in the tree, so
-  // rotating between one pane and three keeps the open chat and its draft.
+  // Tablet shell: rail | chats | chat | details, where chats and details open and close. The stack
+  // keeps its place in the tree, so rotating between layouts keeps the open chat and its draft.
   const panes = usePaneLayout();
   const openChat = useOpenChat();
   // One chat at a time in the middle pane: opening another replaces it instead of stacking.
   const singleChat = panes.split ? () => "open-chat" : false;
+  // The plain interface opens pages at full height: a dimmed strip above a sheet is a grey band
+  // on e-ink, and the tablet shell has room for the whole page.
+  const sheetDetents = useSimpleInterface() ? [1] : [0.85];
 
   return (
     <ChatNavigationGateContext value={navigationGate}>
       <View className="flex-1 flex-row">
-        {panes.split ? <AgentListPane width={panes.listWidth} /> : null}
+        {panes.split ? <NavRail /> : null}
+        {panes.listOpen ? (
+          <View style={{ width: panes.listWidth }} className="border-r-2 border-border">
+            <SimpleChatList />
+          </View>
+        ) : null}
         <View className="flex-1">
           <Stack
             initialRouteName="connected"
@@ -97,7 +106,7 @@ function AuthenticatedStack() {
                 headerShown: false,
                 scrollEdgeEffects: { top: "hidden", bottom: "soft" },
                 presentation: "formSheet",
-                sheetAllowedDetents: [0.85],
+                sheetAllowedDetents: sheetDetents,
                 sheetGrabberVisible: true,
               }}
             />
@@ -124,7 +133,7 @@ function AuthenticatedStack() {
                 headerBlurEffect: "none",
                 scrollEdgeEffects: { top: "hidden", bottom: "soft" },
                 presentation: "formSheet",
-                sheetAllowedDetents: [0.85],
+                sheetAllowedDetents: sheetDetents,
                 sheetGrabberVisible: true,
                 title: t("mobile.app.route.newChannel"),
               }}
@@ -138,7 +147,7 @@ function AuthenticatedStack() {
                 headerBlurEffect: "none",
                 scrollEdgeEffects: { top: "hidden", bottom: "soft" },
                 presentation: "formSheet",
-                sheetAllowedDetents: [0.85],
+                sheetAllowedDetents: sheetDetents,
                 sheetGrabberVisible: true,
                 title: t("mobile.app.route.createAgent"),
               }}
@@ -150,7 +159,7 @@ function AuthenticatedStack() {
                 headerShown: false,
                 scrollEdgeEffects: { top: "hidden", bottom: "soft" },
                 presentation: "formSheet",
-                sheetAllowedDetents: [0.85],
+                sheetAllowedDetents: sheetDetents,
                 sheetGrabberVisible: true,
               }}
             />
@@ -179,7 +188,7 @@ function AuthenticatedStack() {
                 headerBlurEffect: "none",
                 scrollEdgeEffects: { top: "hidden", bottom: "soft" },
                 presentation: "formSheet",
-                sheetAllowedDetents: [0.85],
+                sheetAllowedDetents: sheetDetents,
                 sheetGrabberVisible: true,
                 title: t("mobile.app.route.newSection"),
               }}
@@ -191,7 +200,7 @@ function AuthenticatedStack() {
                 headerShown: false,
                 scrollEdgeEffects: { top: "hidden", bottom: "soft" },
                 presentation: "formSheet",
-                sheetAllowedDetents: [0.85],
+                sheetAllowedDetents: sheetDetents,
                 sheetGrabberVisible: true,
               }}
             />
@@ -214,7 +223,7 @@ function AuthenticatedStack() {
                 headerShown: false,
                 scrollEdgeEffects: { top: "hidden", bottom: "soft" },
                 presentation: "formSheet",
-                sheetAllowedDetents: [0.85],
+                sheetAllowedDetents: sheetDetents,
                 sheetGrabberVisible: true,
               }}
             />
@@ -225,7 +234,7 @@ function AuthenticatedStack() {
                 headerShown: false,
                 scrollEdgeEffects: { top: "hidden", bottom: "soft" },
                 presentation: "formSheet",
-                sheetAllowedDetents: [0.85],
+                sheetAllowedDetents: sheetDetents,
                 sheetGrabberVisible: true,
               }}
             />
@@ -247,7 +256,7 @@ function AuthenticatedStack() {
                 headerShown: false,
                 scrollEdgeEffects: { top: "hidden", bottom: "soft" },
                 presentation: "formSheet",
-                sheetAllowedDetents: [0.85],
+                sheetAllowedDetents: sheetDetents,
                 sheetGrabberVisible: true,
               }}
             />
@@ -258,14 +267,14 @@ function AuthenticatedStack() {
                 headerShown: false,
                 scrollEdgeEffects: { top: "hidden", bottom: "soft" },
                 presentation: "formSheet",
-                sheetAllowedDetents: [0.85],
+                sheetAllowedDetents: sheetDetents,
                 sheetGrabberVisible: true,
               }}
             />
           </Stack>
         </View>
         {panes.detailsOpen && openChat ? (
-          <View style={{ width: panes.detailsWidth }}>
+          <View style={{ width: panes.detailsWidth }} className="border-l-2 border-border">
             <DetailsPane chat={openChat} />
           </View>
         ) : null}
@@ -277,18 +286,23 @@ function AuthenticatedStack() {
 export default function AuthenticatedLayout() {
   const { session } = useMobileSession();
   const workspaceKey = session ? `${session.apiUrl}:${session.user.id}` : "signed-out";
+  const [width, setWidth] = useState<number | null>(null);
 
   return (
-    <MobileWorkspaceProvider key={workspaceKey}>
-      <AgentPinTransitionProvider>
-        <AppDrawerShell>
-          <MessageActionsProvider>
-            <QueuedMessagesProvider>
-              <AuthenticatedStack />
-            </QueuedMessagesProvider>
-          </MessageActionsProvider>
-        </AppDrawerShell>
-      </AgentPinTransitionProvider>
-    </MobileWorkspaceProvider>
+    <View className="flex-1" onLayout={({ nativeEvent }) => setWidth(Math.round(nativeEvent.layout.width))}>
+      <ShellWidthContext value={width}>
+        <MobileWorkspaceProvider key={workspaceKey}>
+          <AgentPinTransitionProvider>
+            <AppDrawerShell>
+              <MessageActionsProvider>
+                <QueuedMessagesProvider>
+                  <AuthenticatedStack />
+                </QueuedMessagesProvider>
+              </MessageActionsProvider>
+            </AppDrawerShell>
+          </AgentPinTransitionProvider>
+        </MobileWorkspaceProvider>
+      </ShellWidthContext>
+    </View>
   );
 }

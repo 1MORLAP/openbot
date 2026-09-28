@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { SimpleChatView } from "@/features/simple/components/simple-chat-view";
+import { useSimpleInterface } from "@/features/workspace/components/split-layout";
 import { useAgentActivity } from "@/features/workspace/components/use-agent-activity";
 import { type MobileAgent, useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import { latestReadableMessage, projectChatMessages, withFailureReasons } from "../model/chat-messages";
@@ -85,8 +87,10 @@ export function MobileChatView({ agent }: { agent: MobileAgent }) {
     online,
     respondToPrompt,
   );
+  // E-ink panels and the tablet shell get the plain chat; phones keep the animated one.
+  const ChatSurface = useSimpleInterface() ? SimpleChatView : ChatView;
   return (
-    <ChatView
+    <ChatSurface
       target={{ ...agent, kind: "agent" }}
       queue={queue}
       agents={serverAgents}

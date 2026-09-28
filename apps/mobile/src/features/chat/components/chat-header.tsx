@@ -2,14 +2,13 @@ import { GlassView } from "expo-glass-effect";
 import { Link, router } from "expo-router";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { ArrowLeft, PanelRight, PanelRightClose, TriangleAlert } from "lucide-react-native";
+import { ArrowLeft, TriangleAlert } from "lucide-react-native";
 import { useMemo } from "react";
 import { Pressable, View, type ViewStyle } from "react-native";
 import { AgentPinAvatar } from "@/features/agents/components/agent-pin-avatar";
 import { BloubAvatar } from "@/features/agents/components/bloub-avatar";
 import { ChannelAvatar } from "@/features/channels/components/channel-avatar";
 import { ChatGlassIconButton } from "@/features/chat/components/chat-glass-icon-button";
-import { toggleDetailsPane, usePaneLayout } from "@/features/workspace/components/split-layout";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import { BlurReveal } from "@/shared/components/blur-reveal";
 import { SheetScrollEdgeEffect } from "@/shared/components/sheet-scroll-edge-effect";
@@ -47,8 +46,6 @@ export function ChatHeader({
     [target],
   );
   const iconColor = String(foreground);
-  // Beside the chat list there is nothing to go back to; the details pane is toggled instead.
-  const { split, detailsOpen } = usePaneLayout();
 
   return (
     <>
@@ -57,19 +54,17 @@ export function ChatHeader({
         pointerEvents="box-none"
         style={{ top: topInset + 8 }}
       >
-        {split ? null : (
-          <ChatGlassIconButton
-            accessibilityLabel={t("common.back")}
-            fallbackBackground={fallbackBackground}
-            liquidGlassAvailable={liquidGlassAvailable}
-            onPress={() => {
-              void haptics.impact("soft");
-              onBack();
-            }}
-          >
-            <ArrowLeft color={iconColor} size={24} strokeWidth={2} />
-          </ChatGlassIconButton>
-        )}
+        <ChatGlassIconButton
+          accessibilityLabel={t("common.back")}
+          fallbackBackground={fallbackBackground}
+          liquidGlassAvailable={liquidGlassAvailable}
+          onPress={() => {
+            void haptics.impact("soft");
+            onBack();
+          }}
+        >
+          <ArrowLeft color={iconColor} size={24} strokeWidth={2} />
+        </ChatGlassIconButton>
 
         <GlassView
           glassEffectStyle={liquidGlassAvailable ? "regular" : "none"}
@@ -163,25 +158,6 @@ export function ChatHeader({
               )}
             </BlurReveal>
           </View>
-        ) : null}
-        {split ? (
-          <ChatGlassIconButton
-            accessibilityLabel={t(
-              detailsOpen ? "mobile.workspace.split.hideDetails" : "mobile.workspace.split.showDetails",
-            )}
-            fallbackBackground={fallbackBackground}
-            liquidGlassAvailable={liquidGlassAvailable}
-            onPress={() => {
-              void haptics.impact("soft");
-              toggleDetailsPane(detailsOpen);
-            }}
-          >
-            {detailsOpen ? (
-              <PanelRightClose color={iconColor} size={24} strokeWidth={2} />
-            ) : (
-              <PanelRight color={iconColor} size={24} strokeWidth={2} />
-            )}
-          </ChatGlassIconButton>
         ) : null}
       </View>
       <SheetScrollEdgeEffect

@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.content.res.Resources
+import android.os.Build
 import android.util.DisplayMetrics
 import android.view.ViewTreeObserver
 import com.facebook.react.ReactApplication
@@ -22,11 +23,18 @@ import kotlin.math.roundToInt
 object DisplayZoom {
   private const val PREFS = "openbot.display"
   private const val KEY = "zoom"
-  const val DEFAULT_ZOOM = 1.5f
+  /** E-ink readers start larger: their panels are dense and their system UI is small. */
+  private const val EINK_DEFAULT_ZOOM = 1.5f
   val ZOOMS = floatArrayOf(1f, 1.25f, 1.5f, 1.75f, 2f, 2.5f, 3f)
+  private val EINK_MANUFACTURERS = listOf("onyx", "boox", "bigme", "boyue", "likebook", "meebook", "hisense", "pocketbook", "mooink")
+
+  val defaultZoom: Float by lazy {
+    val names = listOf(Build.MANUFACTURER, Build.BRAND, Build.MODEL).map { it.orEmpty().lowercase() }
+    if (names.any { name -> EINK_MANUFACTURERS.any { name.contains(it) } }) EINK_DEFAULT_ZOOM else 1f
+  }
 
   fun zoom(context: Context): Float =
-    context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getFloat(KEY, DEFAULT_ZOOM)
+    context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getFloat(KEY, defaultZoom)
 
   fun save(context: Context, zoom: Float) {
     context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putFloat(KEY, zoom).commit()
@@ -64,16 +72,22 @@ object DisplayZoom {
     return true
   }
 
-  private fun emitDimensions(activity: Activity) {
-    val context = (activity.application as? ReactApplication)?.reactHost?.currentReactContext ?: return
-    val module = context.getNativeModule("DeviceInfo") ?: return
-    runCatching { module.javaClass.getMethod("emitUpdateDimensionsEvent").invoke(module) }
+  // The density JavaScript last received. React Native reads its dimension constants before the
+  // zoom is applied, so JavaScript keeps the physical size until an update event says otherwise.
+  private var emittedDensity = 0f
+
+  private fun emitDimensions(activity: Activity): Boolean {
+    val context = (activity.application as? ReactApplication)?.reactHost?.currentReactContext ?: return false
+    val module = context.getNativeModule("DeviceInfo") ?: return false
+    return runCatching { module.javaClass.getMethod("emitUpdateDimensionsEvent").invoke(module) }.isSuccess
   }
 
   /** Call after the activity's super.onCreate and super.onConfigurationChanged. */
   fun reapply(activity: Activity) {
-    if (applyToReactNative(activity)) {
-      emitDimensions(activity)
+    val changed = applyToReactNative(activity)
+    val density = DisplayMetricsHolder.getScreenDisplayMetrics().density
+    if ((changed || density != emittedDensity) && emitDimensions(activity)) {
+      emittedDensity = density
       activity.window?.decorView?.requestLayout()
     }
   }

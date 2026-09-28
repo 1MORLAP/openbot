@@ -3,6 +3,7 @@ import { Typography } from "heroui-native";
 import { useState } from "react";
 import { View } from "react-native";
 import { useCSSVariable } from "uniwind";
+import { useEinkMode } from "@/shared/lib/eink";
 
 interface ProfileAvatarProps {
   name: string;
@@ -17,6 +18,8 @@ export function ProfileAvatar({ name, imageUrl, accent, size = 48, neutral = fal
   const brandForeground = String(useCSSVariable("--openbot-text-on-light"));
   const neutralBackground = String(useCSSVariable("--openbot-border-grouped"));
   const neutralForeground = String(useCSSVariable("--openbot-text-grouped-secondary"));
+  // E-ink draws every tile black, so its initials are white.
+  const eink = useEinkMode();
   const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
   const imageFailed = imageUrl === failedImageUrl;
 
@@ -45,7 +48,7 @@ export function ProfileAvatar({ name, imageUrl, accent, size = 48, neutral = fal
         style={{
           fontSize: Math.max(12, size * 0.3),
           lineHeight: size * 0.4,
-          color: neutral ? neutralForeground : brandForeground,
+          color: eink ? "#ffffff" : neutral ? neutralForeground : brandForeground,
         }}
       >
         {initials || "O"}

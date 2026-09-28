@@ -40,7 +40,7 @@ export function DetailsPane({ chat }: { chat: OpenChat }) {
   const insets = useSafeAreaInsets();
   return (
     <ScrollView
-      className="flex-1 border-l border-border bg-background"
+      className="flex-1 bg-background"
       contentContainerClassName="gap-6 px-4"
       contentContainerStyle={{ paddingTop: insets.top + 16, paddingBottom: insets.bottom + 24 }}
     >

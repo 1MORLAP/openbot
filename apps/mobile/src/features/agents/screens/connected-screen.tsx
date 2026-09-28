@@ -16,7 +16,6 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { scheduleOnRN } from "react-native-worklets";
 import {
   type AgentListRevealState,
@@ -30,12 +29,13 @@ import { SidebarSectionHeader } from "@/features/agents/components/sidebar-secti
 import { ChannelListRow } from "@/features/channels/components/channel-list";
 import { useChannels } from "@/features/channels/components/use-channels";
 import { useAppDrawer } from "@/features/servers/components/app-drawer-shell";
+import { SimpleChatList } from "@/features/simple/components/chat-list";
 import { ConnectionHeaderStatus } from "@/features/workspace/components/connection-header-status";
-import { useOpenChat } from "@/features/workspace/components/details-pane";
 import { usePaneLayout } from "@/features/workspace/components/split-layout";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import { mobileSidebarItems } from "@/features/workspace/model/sidebar-layout";
 import { useAppLoadingOverlay, useScreenLoadingLabel } from "@/shared/components/app-loading-overlay";
+import { useEinkMode } from "@/shared/lib/eink";
 import { haptics } from "@/shared/lib/haptics";
 import { isAndroid, isIOS } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
@@ -163,32 +163,33 @@ function openFromMenu(href: Href): void {
   router.push(href);
 }
 
-/** The home route. With a split layout the list lives in the left pane, so the route stays empty. */
+/**
+ * The home route. The tablet shell shows the chat list in its own pane, so the route stays empty;
+ * e-ink phones get the plain list.
+ */
 export function ConnectedScreen() {
   const { split } = usePaneLayout();
+  const eink = useEinkMode();
   const { t } = useText();
-  if (!split) return <AgentListScreen />;
-  return (
-    <View className="flex-1 items-center justify-center bg-background px-8">
-      <Stack.Screen options={{ headerShown: false }} />
-      <Typography.Paragraph align="center">{t("mobile.workspace.split.empty")}</Typography.Paragraph>
-    </View>
-  );
+  if (split)
+    return (
+      <View className="flex-1 items-center justify-center bg-background px-8">
+        <Stack.Screen options={{ headerShown: false }} />
+        <Typography.Paragraph align="center">{t("mobile.workspace.split.empty")}</Typography.Paragraph>
+      </View>
+    );
+  if (eink)
+    return (
+      <>
+        <Stack.Screen options={{ headerShown: false }} />
+        <SimpleChatList phone />
+      </>
+    );
+  return <AgentListScreen />;
 }
 
-/** The chat list as the left pane of the split layout. */
-export function AgentListPane({ width }: { width: number }) {
-  return (
-    <View style={{ width }} className="border-r border-border">
-      <AgentListScreen pane />
-    </View>
-  );
-}
-
-function AgentListScreen({ pane = false }: { pane?: boolean }) {
+function AgentListScreen() {
   const { t, sourceText } = useText();
-  const insets = useSafeAreaInsets();
-  const openChat = useOpenChat();
   const { isLoaderPresent } = useAppLoadingOverlay();
   const { openDrawer } = useAppDrawer();
   const {
@@ -225,9 +226,7 @@ function AgentListScreen({ pane = false }: { pane?: boolean }) {
   // belongs to this screen while it is the route on top.
   useScreenLoadingLabel(
     "/connected",
-    showLoader && !pane
-      ? t(hasSelectedServer ? "mobile.agent.home.connecting" : "mobile.agent.home.loadingServers")
-      : null,
+    showLoader ? t(hasSelectedServer ? "mobile.agent.home.connecting" : "mobile.agent.home.loadingServers") : null,
   );
   const pinnedAgents = pinnedAgentIds
     .map((agentId) => activeAgents.find((agent) => agent.id === agentId))
@@ -282,57 +281,8 @@ function AgentListScreen({ pane = false }: { pane?: boolean }) {
     [hasHiddenChats, channels.supported, sidebar?.layout, t],
   );
 
-  const headerLeft = () => (
-    <View className="flex-row items-center gap-2">
-      <HeaderIconButton accessibilityLabel={t("mobile.agent.home.openServers")} onPress={openDrawer}>
-        <Layers3 color={iconColor} size={22} strokeWidth={1.8} />
-      </HeaderIconButton>
-      <ConnectionHeaderStatus server={hasSelectedServer ? activeServer : undefined} />
-    </View>
-  );
-  const headerRight = () => (
-    <View className="flex-row items-center gap-1">
-      <HeaderIconButton
-        accessibilityLabel={t("mobile.agent.home.searchAgents")}
-        onPress={() => {
-          void haptics.impact("soft");
-          router.push("/search-agents");
-        }}
-      >
-        <Search color={iconColor} size={22} strokeWidth={1.9} />
-      </HeaderIconButton>
-      <MenuView
-        actions={optionsActions}
-        onPressAction={(event) => {
-          if (event.nativeEvent.event === "add-section")
-            router.push({ pathname: "/section-form", params: { serverId: activeServer.id } });
-          if (event.nativeEvent.event === "add-agent") router.push("/add-agent");
-          if (event.nativeEvent.event === "add-channel")
-            router.push({ pathname: "/add-channel", params: { serverId: activeServer.id } });
-          if (event.nativeEvent.event === "hidden-chats") router.push("/hidden-chats");
-        }}
-        style={{ height: 44, width: 44 }}
-      >
-        <View
-          accessibilityLabel={t("mobile.agent.home.chatOptions")}
-          accessibilityRole="button"
-          accessible
-          className="size-11 items-center justify-center rounded-full"
-        >
-          <Plus color={iconColor} size={24} strokeWidth={1.9} />
-        </View>
-      </MenuView>
-    </View>
-  );
-
   return (
     <View className="flex-1 bg-background">
-      {pane ? (
-        <View className="flex-row items-center justify-between px-2 pb-1" style={{ paddingTop: insets.top + 8 }}>
-          {headerLeft()}
-          {headerRight()}
-        </View>
-      ) : null}
       {listReady ? (
         <Animated.FlatList
           key={activeServer.id}
@@ -375,19 +325,11 @@ function AgentListScreen({ pane = false }: { pane?: boolean }) {
                 reveal={listReveal}
                 collapsed={collapsedChatIds.has(item.id)}
               >
-                <View
-                  className={
-                    pane && openChat?.id === (item.kind === "agent" ? item.agent.id : item.channel.id)
-                      ? "bg-control"
-                      : undefined
-                  }
-                >
-                  {item.kind === "channel" ? (
-                    <ChannelListRow channel={item.channel} serverId={activeServer.id} agents={channelAgents} />
-                  ) : (
-                    <AgentListRow agent={item.agent} leftInset={15} rightInset={24} />
-                  )}
-                </View>
+                {item.kind === "channel" ? (
+                  <ChannelListRow channel={item.channel} serverId={activeServer.id} agents={channelAgents} />
+                ) : (
+                  <AgentListRow agent={item.agent} leftInset={15} rightInset={24} />
+                )}
               </TransitioningChatRow>
             )
           }
@@ -492,18 +434,61 @@ function AgentListScreen({ pane = false }: { pane?: boolean }) {
         />
       ) : null}
 
-      {pane ? null : (
-        <Stack.Screen
-          options={{
-            headerLeft: isAndroid ? headerLeft : undefined,
-            headerRight: isAndroid ? headerRight : undefined,
-            headerTintColor: foreground,
-            title: "",
-          }}
-        />
-      )}
+      <Stack.Screen
+        options={{
+          headerLeft: isAndroid
+            ? () => (
+                <View className="flex-row items-center gap-2">
+                  <HeaderIconButton accessibilityLabel={t("mobile.agent.home.openServers")} onPress={openDrawer}>
+                    <Layers3 color={iconColor} size={22} strokeWidth={1.8} />
+                  </HeaderIconButton>
+                  <ConnectionHeaderStatus server={hasSelectedServer ? activeServer : undefined} />
+                </View>
+              )
+            : undefined,
+          headerRight: isAndroid
+            ? () => (
+                <View className="flex-row items-center gap-1">
+                  <HeaderIconButton
+                    accessibilityLabel={t("mobile.agent.home.searchAgents")}
+                    onPress={() => {
+                      void haptics.impact("soft");
+                      router.push("/search-agents");
+                    }}
+                  >
+                    <Search color={iconColor} size={22} strokeWidth={1.9} />
+                  </HeaderIconButton>
+                  <MenuView
+                    actions={optionsActions}
+                    onPressAction={(event) => {
+                      if (event.nativeEvent.event === "add-section")
+                        router.push({ pathname: "/section-form", params: { serverId: activeServer.id } });
+                      if (event.nativeEvent.event === "add-agent") router.push("/add-agent");
+                      if (event.nativeEvent.event === "add-channel")
+                        router.push({ pathname: "/add-channel", params: { serverId: activeServer.id } });
+                      if (event.nativeEvent.event === "hidden-chats") router.push("/hidden-chats");
+                    }}
+                    style={{ height: 44, width: 44 }}
+                  >
+                    <View
+                      accessibilityLabel={t("mobile.agent.home.chatOptions")}
+                      accessibilityRole="button"
+                      accessible
+                      className="size-11 items-center justify-center rounded-full"
+                    >
+                      <Plus color={iconColor} size={24} strokeWidth={1.9} />
+                    </View>
+                  </MenuView>
+                </View>
+              )
+            : undefined,
+          headerShown: true,
+          headerTintColor: foreground,
+          title: "",
+        }}
+      />
 
-      {isIOS && !pane ? (
+      {isIOS ? (
         <>
           <Stack.Toolbar placement="left">
             <Stack.Toolbar.Button icon="square.stack.3d.up.fill" onPress={openDrawer} />

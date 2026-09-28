@@ -17,6 +17,7 @@ import { scheduleOnRN } from "react-native-worklets";
 import { useMobileSession } from "@/features/auth/context/mobile-session-context";
 import { ServerDrawerContent } from "@/features/servers/components/server-drawer-content";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import { useEinkMode } from "@/shared/lib/eink";
 import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
 
@@ -159,8 +160,11 @@ export function AppDrawerShell({ children }: PropsWithChildren) {
     opacity: interpolate(drawerProgress.get(), [0, 1], [0.55, 1]),
     transform: [{ translateX: interpolate(drawerProgress.get(), [0, 1], [-24, 0]) }],
   }));
+  // E-ink shows a dark scrim as a grey wash and a blur as smear, so it gets a light scrim only.
+  const eink = useEinkMode();
+  const scrimOpacity = eink ? 0.15 : 0.5;
   const scrimStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(drawerProgress.get(), [0, 1], [0, 0.5]),
+    opacity: interpolate(drawerProgress.get(), [0, 1], [0, scrimOpacity]),
   }));
   const blurStyle = useAnimatedStyle(() => ({
     opacity: drawerProgress.get(),
@@ -235,9 +239,11 @@ export function AppDrawerShell({ children }: PropsWithChildren) {
             >
               {children}
               <View className="absolute inset-0" pointerEvents={drawerOpen ? "auto" : "none"}>
-                <Animated.View className="absolute inset-0" pointerEvents="none" style={blurStyle}>
-                  <BlurView intensity={5} style={{ flex: 1 }} tint="systemThickMaterial" />
-                </Animated.View>
+                {eink ? null : (
+                  <Animated.View className="absolute inset-0" pointerEvents="none" style={blurStyle}>
+                    <BlurView intensity={5} style={{ flex: 1 }} tint="systemThickMaterial" />
+                  </Animated.View>
+                )}
                 <Animated.View className="absolute inset-0 bg-drawer-scrim" pointerEvents="none" style={scrimStyle} />
                 <Pressable
                   accessibilityRole="button"
