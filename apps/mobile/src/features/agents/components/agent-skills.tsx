@@ -2,7 +2,8 @@ import { Host, Switch } from "@expo/ui";
 import { type InstalledSkill, SKILL_CREATION_REQUEST } from "@openbot/contracts/ipc";
 import type { MobileTranslate } from "@openbot/i18n/mobile";
 import { type QueryKey, useQueryClient } from "@tanstack/react-query";
-import { router, Stack } from "expo-router";
+import { Stack, useNavigation } from "expo-router";
+import { StackActions } from "expo-router/react-navigation";
 import { Typography } from "heroui-native";
 import { useState } from "react";
 import { Alert } from "react-native";
@@ -14,22 +15,36 @@ import { haptics } from "@/shared/lib/haptics";
 import { isIOS } from "@/shared/lib/platform";
 import { currentText, useText } from "@/shared/lib/text";
 
+/** The route name of an agent chat in the app stack, `app/(app)/chat/[agentId].tsx`. */
+const CHAT_ROUTE = "chat/[agentId]";
+
 /**
  * The header plus: as on desktop, it puts the skill-creation request in this agent's composer and
  * closes the sheet. The agent then asks what the skill is for and creates it in the chat.
  */
 export function CreateSkillAction({ agent }: { agent: MobileAgent }) {
   const { t } = useText();
+  // The stack that presents this sheet. The sheet has its own stack inside, so `router.dismissTo`
+  // does not see the chat under it and would open a second, empty chat on top.
+  const sheetStack = useNavigation().getParent();
   return (
     <Stack.Toolbar placement="right">
       <Stack.Toolbar.Button
         icon={isIOS ? "plus" : undefined}
         accessibilityLabel={t("mobile.agent.skill.create")}
         onPress={() => {
+          if (!sheetStack) return;
           void haptics.impact("light");
           requestComposerText({ serverId: agent.serverId, agentId: agent.id, text: SKILL_CREATION_REQUEST });
-          // Back to the chat under the sheet, or to this agent's chat when the sheet opened from the list.
-          router.dismissTo({ pathname: "/chat/[agentId]", params: { agentId: agent.id } });
+          const state = sheetStack.getState();
+          const below = state?.routes[state.index - 1];
+          const params = below?.params;
+          if (below?.name === CHAT_ROUTE && params && "agentId" in params && params.agentId === agent.id) {
+            sheetStack.goBack();
+          } else {
+            // The sheet opened from the list: this agent's chat takes the place of the sheet.
+            sheetStack.dispatch(StackActions.replace(CHAT_ROUTE, { agentId: agent.id }));
+          }
         }}
       >
         {isIOS ? undefined : "+"}

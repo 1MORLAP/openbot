@@ -224,14 +224,15 @@ export function ChatView({
     if (answersQuestion) setComposerFocusVersion((version) => version + 1);
   }, [answersQuestion]);
   // Another screen, such as Agent info > Skills, can put text in this composer and close itself.
+  // Only a chat in front takes it: a chat under that screen is not the one the user returns to.
   const composerRequest = useComposerRequest((state) => state.request);
   useEffect(() => {
-    if (!composerRequest || target.kind !== "agent") return;
+    if (!isFocused || !composerRequest || target.kind !== "agent") return;
     const text = takeComposerRequest(target.serverId, target.id);
     if (!text) return;
     setDraft((current) => (current ? `${current}\n${text}` : text));
     setComposerFocusVersion((version) => version + 1);
-  }, [composerRequest, target.kind, target.serverId, target.id]);
+  }, [isFocused, composerRequest, target.kind, target.serverId, target.id]);
   const lastUserId =
     messages.findLast((message) => message.kind === "message" && message.author === "user")?.id ?? null;
   const motion = useChatMotion(

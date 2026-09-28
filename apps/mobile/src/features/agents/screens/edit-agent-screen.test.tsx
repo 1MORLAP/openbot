@@ -81,6 +81,13 @@ vi.mock("expo-file-system", () => ({
   },
 }));
 
+const { sheetRoutes } = vi.hoisted(() => ({
+  sheetRoutes: (...routes: { name: string; params?: object }[]) => [
+    { name: "connected" },
+    ...routes,
+    { name: "agent-info/[agentId]" },
+  ],
+}));
 const mocks = vi.hoisted(() => ({
   choosePhoto: vi.fn(),
   fileSize: 8,
@@ -89,6 +96,14 @@ const mocks = vi.hoisted(() => ({
   replace: vi.fn(),
   dismissTo: vi.fn(),
   dispatch: vi.fn(),
+  sheetStack: {
+    routes: sheetRoutes(),
+    getState() {
+      return { index: this.routes.length - 1, routes: this.routes };
+    },
+    goBack: vi.fn(),
+    dispatch: vi.fn(),
+  },
   alert: vi.fn(),
   shareFile: vi.fn(),
   back: vi.fn(),
@@ -261,7 +276,7 @@ vi.mock("expo-router", () => ({
     serverId: "host-one",
     recordId: mocks.recordId,
   }),
-  useNavigation: () => ({ dispatch: mocks.dispatch }),
+  useNavigation: () => ({ dispatch: mocks.dispatch, getParent: () => mocks.sheetStack }),
   Link: Object.assign(({ children }: PropsWithChildren) => <>{children}</>, {
     Trigger: ({ children }: PropsWithChildren) => children,
     AppleZoomTarget: ({ children }: PropsWithChildren) => children,
@@ -286,6 +301,7 @@ vi.mock("expo-router", () => ({
   }),
 }));
 vi.mock("expo-router/react-navigation", () => ({
+  StackActions: { replace: (name: string, params: object) => ({ type: "REPLACE", payload: { name, params } }) },
   usePreventRemove: (blocked: boolean, callback: (value: { data: { action: { type: string } } }) => void) => {
     mocks.blocked = blocked;
     mocks.leave = () => {
@@ -616,6 +632,9 @@ beforeEach(() => {
   channelRequests.mockClear();
   mocks.replace.mockClear();
   mocks.dismissTo.mockClear();
+  mocks.sheetStack.routes = sheetRoutes();
+  mocks.sheetStack.goBack.mockClear();
+  mocks.sheetStack.dispatch.mockClear();
   mocks.recordId = "";
   mocks.blocked = false;
   mocks.leave = () => {};
@@ -889,10 +908,22 @@ it("lets an admin start a new skill in the agent chat, as on desktop", async () 
     agentId: original.id,
     text: SKILL_CREATION_REQUEST,
   });
-  expect(mocks.dismissTo).toHaveBeenCalledWith({ pathname: "/chat/[agentId]", params: { agentId: original.id } });
+  // Opened from the agent list: the agent chat takes the place of the sheet.
+  expect(mocks.sheetStack.dispatch).toHaveBeenCalledWith({
+    type: "REPLACE",
+    payload: { name: "chat/[agentId]", params: { agentId: original.id } },
+  });
+  expect(mocks.sheetStack.goBack).not.toHaveBeenCalled();
   expect(takeComposerRequest("other-host", original.id)).toBeNull();
   expect(takeComposerRequest(original.serverId, original.id)).toBe(SKILL_CREATION_REQUEST);
   expect(useComposerRequest.getState().request).toBeNull();
+
+  // Opened from the agent chat: the sheet closes and that chat, not a new one, gets the request.
+  mocks.sheetStack.routes = sheetRoutes({ name: "chat/[agentId]", params: { agentId: original.id } });
+  mocks.sheetStack.dispatch.mockClear();
+  await click("Create skill");
+  expect(mocks.sheetStack.goBack).toHaveBeenCalledOnce();
+  expect(mocks.sheetStack.dispatch).not.toHaveBeenCalled();
 });
 
 it("uninstalls a skill after confirmation and keeps it when the host refuses", async () => {
