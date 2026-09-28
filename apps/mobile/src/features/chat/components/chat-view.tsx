@@ -359,7 +359,7 @@ export function ChatView({
     }
 
     setSendError(null);
-    const queueSend = Boolean(queue && (activeTurnId || queue.queued.length));
+    const queueSend = Boolean(queue && (activeTurnId || queue.queued.length || queue.replies.length));
     setPendingInQueue(queueSend);
     if (!queueSend) motion.beginSend();
     Keyboard.dismiss();

@@ -1,5 +1,5 @@
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
-import type { QueueDelivery } from "@openbot/contracts/ipc";
+import { type ConversationMessage, isQueuedAgentReply, type QueueDelivery } from "@openbot/contracts/ipc";
 import { isQueueEditRejected } from "@openbot/contracts/team-protocol/queue-edit-v1";
 import { type MobileTextKey, sourceText } from "@openbot/i18n/mobile";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMobileSession } from "@/features/auth/context/mobile-session-context";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import { currentText, useText } from "@/shared/lib/text";
+import { awaitingReplies } from "../model/awaiting-replies";
 import {
   readQueueAttachment,
   removeQueueAttachment,
@@ -26,6 +27,7 @@ import { ChatUploadCancelledError, uploadChatAttachments } from "../model/upload
 import type { ChatAttachment } from "./use-chat-attachments";
 
 const EMPTY_DELIVERIES: QueueDelivery[] = [];
+const EMPTY_MESSAGES: readonly ConversationMessage[] = [];
 
 const DRAFT_ERROR_KEYS = {
   edit: "mobile.chat.queue.readEditFailed",
@@ -33,7 +35,14 @@ const DRAFT_ERROR_KEYS = {
   pendingSave: "mobile.chat.queue.readPendingSaveFailed",
 } as const satisfies Record<QueueEditDraftError["part"], MobileTextKey>;
 
-export function useChatQueue(agentId: string, serverId: string, online: boolean, activeTurnId: string | null) {
+export function useChatQueue(
+  agentId: string,
+  serverId: string,
+  online: boolean,
+  activeTurnId: string | null,
+  /** The loaded conversation. Its outgoing exchanges name the teammates the agent waits for. */
+  messages: readonly ConversationMessage[] = EMPTY_MESSAGES,
+) {
   const { loadQueue, changeQueue, editQueue, canEditQueue, uploadAttachment, discardAttachment, attachmentSupport } =
     useMobileWorkspace();
   const text = useText();
@@ -77,7 +86,16 @@ export function useChatQueue(agentId: string, serverId: string, online: boolean,
       !busy &&
       query.data?.deliveries.some((item) => item.id === edit.delivery.id && item.status !== "queued"),
   );
-  const queued = useMemo(() => orderedQueue(query.data?.deliveries ?? []), [query.data]);
+  // A teammate's answer waits in the queue until the agent reads it, but it is not the user's
+  // message: it has no edit, steer or reorder actions. The waiting block shows it instead.
+  const queued = useMemo(
+    () => orderedQueue((query.data?.deliveries ?? []).filter((item) => !isQueuedAgentReply(item))),
+    [query.data],
+  );
+  const replies = useMemo(() => orderedQueue((query.data?.deliveries ?? []).filter(isQueuedAgentReply)), [query.data]);
+  // The questions come from the conversation and the answers from the queue. A teammate that is
+  // still asked or working has a row before any answer arrives.
+  const waiting = useMemo(() => awaitingReplies(messages, replies), [messages, replies]);
   // Persist typing after a pause, without blocking each key event. The edit identity is
   // persisted synchronously BEFORE requesting the host hold, so a restart can recover it.
   useEffect(() => {
@@ -319,6 +337,8 @@ export function useChatQueue(agentId: string, serverId: string, online: boolean,
           if (editUnavailable) await clearEdit();
         }),
       queued,
+      replies,
+      waiting,
       deliveries: query.data?.deliveries ?? EMPTY_DELIVERIES,
       edit,
       confirmed,
@@ -379,8 +399,11 @@ export function useChatQueue(agentId: string, serverId: string, online: boolean,
         }),
       moveFirst: (delivery: QueueDelivery) =>
         run(async () => {
+          // The host checks the order against every queued delivery, so the answers the sheet does
+          // not list keep their places behind the moved message.
+          const waiting = orderedQueue(query.data?.deliveries ?? []);
           await changeQueue(agentId, serverId, "reorder", {
-            deliveryIds: [delivery.id, ...queued.filter((item) => item.id !== delivery.id).map((item) => item.id)],
+            deliveryIds: [delivery.id, ...waiting.filter((item) => item.id !== delivery.id).map((item) => item.id)],
           });
         }),
     }),
@@ -388,6 +411,8 @@ export function useChatQueue(agentId: string, serverId: string, online: boolean,
       attachments,
       changeAttachments,
       queued,
+      replies,
+      waiting,
       editUnavailable,
       query.data,
       edit,
