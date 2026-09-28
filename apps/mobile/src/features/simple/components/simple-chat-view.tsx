@@ -18,6 +18,7 @@ import { useVoiceDictation } from "@/features/chat/components/use-voice-dictatio
 import { mentionDraft } from "@/features/chat/model/chat-mentions";
 import type { ChatMessage } from "@/features/chat/model/chat-messages";
 import { useFontScale } from "@/features/settings/model/font-size";
+import { joinsBubbles } from "@/features/simple/model/message-stacking";
 import { toggleDetailsPane, usePaneLayout } from "@/features/workspace/components/split-layout";
 import type { MobileAgent } from "@/features/workspace/context/mobile-workspace-context";
 import { haptics } from "@/shared/lib/haptics";
@@ -90,14 +91,23 @@ function activityText(props: ChatViewProps, t: Translate): string | null {
   return props.activeTurnId ? t("mobile.chat.activity.thinking") : null;
 }
 
+/** Corner of a bubble where it touches its neighbour or carries the speaker's tail. */
+const FLAT_CORNER = 6;
+const ROUND_CORNER = 24;
+
 function MessageRow({
   message,
+  joinAbove = false,
+  joinBelow = false,
   props,
   agentsById,
   colors,
   t,
 }: {
   message: ChatMessage;
+  /** The message before this one is also a bubble, so the two stack with flat corners between them. */
+  joinAbove?: boolean;
+  joinBelow?: boolean;
   props: ChatViewProps;
   agentsById: ReadonlyMap<string, MobileAgent>;
   colors: { foreground: string; background: string };
@@ -108,7 +118,10 @@ function MessageRow({
       const user = message.author === "user";
       const speaker = props.target.kind === "channel" && message.speaker ? message.speaker.name : null;
       return (
-        <View className={`gap-1 py-2 ${user ? "items-end" : "items-start"}`}>
+        <View
+          className={`gap-1 ${user ? "items-end" : "items-start"}`}
+          style={{ paddingTop: joinAbove ? 2 : 8, paddingBottom: joinBelow ? 2 : 8 }}
+        >
           {speaker && !user ? (
             <Typography.Paragraph type="body-sm" weight="bold">
               {speaker}
@@ -123,7 +136,19 @@ function MessageRow({
             </View>
           ))}
           {message.body.trim() ? (
-            <View className={user ? "max-w-[85%] rounded-3xl rounded-br-md bg-foreground px-4 py-3" : "w-full"}>
+            <View
+              className={user ? "max-w-[85%] bg-foreground px-4 py-3" : "w-full"}
+              style={
+                user
+                  ? {
+                      borderTopLeftRadius: joinAbove ? FLAT_CORNER : ROUND_CORNER,
+                      borderTopRightRadius: joinAbove ? FLAT_CORNER : ROUND_CORNER,
+                      borderBottomLeftRadius: joinBelow ? FLAT_CORNER : ROUND_CORNER,
+                      borderBottomRightRadius: FLAT_CORNER,
+                    }
+                  : undefined
+              }
+            >
               <ChatMarkdown
                 body={message.body}
                 color={user ? colors.background : colors.foreground}
@@ -390,9 +415,18 @@ export function SimpleChatView(props: ChatViewProps) {
           className="flex-1"
           contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12 }}
           keyboardShouldPersistTaps="handled"
-          renderItem={({ item }) => (
+          renderItem={({ item, index }) => (
             <View className="w-full max-w-[760px] self-center">
-              <MessageRow message={item} props={props} agentsById={agentsById} colors={colors} t={t} />
+              <MessageRow
+                message={item}
+                // The list is newest first, so the message after this one in time is the one before it here.
+                joinAbove={joinsBubbles(rows[index + 1], item)}
+                joinBelow={joinsBubbles(item, rows[index - 1])}
+                props={props}
+                agentsById={agentsById}
+                colors={colors}
+                t={t}
+              />
             </View>
           )}
           ListEmptyComponent={
@@ -441,7 +475,7 @@ export function SimpleChatView(props: ChatViewProps) {
           </View>
         ) : null}
         {activity || queued || error ? (
-          <View className="mx-3 mb-1 flex-row items-center gap-3 rounded-full border border-border py-1.5 pr-1.5 pl-4">
+          <View className="mx-3 mb-1 flex-row items-center gap-3 py-1 pl-2">
             <Typography.Paragraph
               type="body-sm"
               weight="semibold"

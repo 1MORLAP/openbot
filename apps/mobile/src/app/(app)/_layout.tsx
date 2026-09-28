@@ -49,7 +49,7 @@ function AuthenticatedStack() {
     <ChatNavigationGateContext value={navigationGate}>
       <View className="flex-1 flex-row">
         {panes.mode === "wide" ? (
-          <View style={{ width: panes.listWidth }} className="border-r-2 border-border">
+          <View style={{ width: panes.listWidth }} className="border-r border-border">
             <SimpleChatList />
           </View>
         ) : panes.mode === "compact" && openChat ? (
@@ -278,7 +278,7 @@ function AuthenticatedStack() {
           </Stack>
         </View>
         {panes.detailsOpen && openChat ? (
-          <View style={{ width: panes.detailsWidth }} className="border-l-2 border-border">
+          <View style={{ width: panes.detailsWidth }} className="border-l border-border">
             <DetailsPane chat={openChat} />
           </View>
         ) : null}

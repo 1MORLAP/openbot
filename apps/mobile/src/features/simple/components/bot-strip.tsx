@@ -101,7 +101,7 @@ export function BotStrip() {
           <List color={foreground} size={22} strokeWidth={2} />
         </View>
       </StripButton>
-      <View className="my-2 h-px w-10 bg-border" />
+      <View className="h-3" />
       <ScrollView
         className="flex-1"
         contentContainerClassName="items-center gap-1.5 pb-2"
