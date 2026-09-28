@@ -1,22 +1,27 @@
-import { MenuView } from "@expo/ui/community/menu";
-import type { ChannelSummary } from "@openbot/contracts/ipc";
+import { type MenuAction, MenuView } from "@expo/ui/community/menu";
+import { type ChannelSummary, SIDEBAR_UNASSIGNED_SECTION_ID } from "@openbot/contracts/ipc";
 import { router } from "expo-router";
 import { Button, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { Hash, Layers3, Plus, Search, Settings } from "lucide-react-native";
-import { type ReactNode, useMemo } from "react";
+import { ChevronDown, ChevronRight, Ellipsis, Hash, Layers3, Plus, Search, Settings } from "lucide-react-native";
+import { type ReactNode, useMemo, useState } from "react";
 import { FlatList, Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { BloubAvatarThumbnail } from "@/features/agents/components/bloub-avatar";
+import { useChatSectionMenu } from "@/features/agents/components/use-chat-section-menu";
+import { useSectionActions } from "@/features/agents/components/use-section-actions";
 import { mobileUserName } from "@/features/auth/api/mobile-user-name";
 import { useMobileSession } from "@/features/auth/context/mobile-session-context";
 import { useChannels } from "@/features/channels/components/use-channels";
 import { markdownPreviewText } from "@/features/chat/model/chat-markdown-parser";
 import { useAppDrawer } from "@/features/servers/components/app-drawer-shell";
+import { ActionSheet } from "@/features/simple/components/action-sheet";
+import { toggleSectionCollapsed, useCollapsedSections } from "@/features/simple/model/collapsed-sections";
 import { useOpenChat } from "@/features/workspace/components/details-pane";
 import { useAgentUnread } from "@/features/workspace/components/use-live-workspace";
 import { type MobileAgent, useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import { canToggleAgentPin } from "@/features/workspace/model/agent-pins";
 import { mobileSidebarItems } from "@/features/workspace/model/sidebar-layout";
 import { ProfileAvatar } from "@/shared/components/profile-avatar";
 import { formatUpdatedAt } from "@/shared/lib/format-updated-at";
@@ -25,64 +30,111 @@ import { useText } from "@/shared/lib/text";
 
 const AVATAR = 44;
 
+interface RowMenu {
+  actions: MenuAction[];
+  onAction: (id: string) => void;
+}
+
+/** A chat in the list. A long press opens its actions: pin, move to a section, hide, info. */
 function Row({
   selected,
   label,
+  name,
   onPress,
   leading,
   title,
   time,
   preview,
   unread,
+  menu,
 }: {
   selected: boolean;
   label: string;
+  name: string;
   onPress: () => void;
   leading: ReactNode;
   title: string;
   time: string;
   preview: string;
   unread: boolean;
+  menu: RowMenu;
 }) {
+  const [open, setOpen] = useState(false);
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ selected }}
-      onPress={() => {
-        void haptics.selection();
-        onPress();
-      }}
-      className={`mx-2 my-0.5 flex-row items-center gap-3 rounded-2xl border-2 px-3 py-2.5 ${selected ? "border-foreground bg-surface-secondary" : "border-transparent"}`}
-      style={({ pressed }) => ({ minHeight: 68, opacity: pressed ? 0.7 : 1 })}
-    >
-      {leading}
-      <View className="min-w-0 flex-1 gap-0.5">
-        <View className="flex-row items-baseline gap-2">
-          <Typography.Paragraph weight={unread ? "bold" : "semibold"} className="min-w-0 flex-1" numberOfLines={1}>
-            {unread ? `● ${title}` : title}
-          </Typography.Paragraph>
-          {time ? (
-            <Typography.Paragraph type="body-xs" numberOfLines={1}>
-              {time}
+    <>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        accessibilityState={{ selected }}
+        onPress={() => {
+          void haptics.selection();
+          onPress();
+        }}
+        onLongPress={() => {
+          void haptics.impact();
+          setOpen(true);
+        }}
+        className={`mx-2 my-0.5 flex-row items-center gap-3 rounded-2xl border-2 px-3 py-2.5 ${selected ? "border-foreground bg-surface-secondary" : "border-transparent"}`}
+        style={({ pressed }) => ({ minHeight: 68, opacity: pressed ? 0.7 : 1 })}
+      >
+        {leading}
+        <View className="min-w-0 flex-1 gap-0.5">
+          <View className="flex-row items-baseline gap-2">
+            <Typography.Paragraph weight={unread ? "bold" : "semibold"} className="min-w-0 flex-1" numberOfLines={1}>
+              {unread ? `● ${title}` : title}
+            </Typography.Paragraph>
+            {time ? (
+              <Typography.Paragraph type="body-xs" numberOfLines={1}>
+                {time}
+              </Typography.Paragraph>
+            ) : null}
+          </View>
+          {preview ? (
+            <Typography.Paragraph type="body-sm" numberOfLines={1}>
+              {preview}
             </Typography.Paragraph>
           ) : null}
         </View>
-        {preview ? (
-          <Typography.Paragraph type="body-sm" numberOfLines={1}>
-            {preview}
-          </Typography.Paragraph>
-        ) : null}
-      </View>
-    </Pressable>
+      </Pressable>
+      {open ? (
+        <ActionSheet title={name} actions={menu.actions} onSelect={menu.onAction} onClose={() => setOpen(false)} />
+      ) : null}
+    </>
   );
 }
 
 function AgentRow({ agent, selected }: { agent: MobileAgent; selected: boolean }) {
   const { t } = useText();
   const unread = useAgentUnread(agent.id);
+  const { hideAgent, markAgentRead, markAgentUnread, pinnedAgentIds, pinnedChannelIds, toggleAgentPin } =
+    useMobileWorkspace();
+  const sectionMenu = useChatSectionMenu(agent.serverId, agent.id);
+  const pinned = pinnedAgentIds.includes(agent.id);
+  const menu: RowMenu = {
+    actions: [
+      {
+        id: "pin",
+        title: t(pinned ? "mobile.agent.pin.unpin" : "mobile.agent.pin.pin"),
+        attributes: { disabled: !canToggleAgentPin([...pinnedAgentIds, ...pinnedChannelIds], agent.id) },
+      },
+      ...sectionMenu.androidActions,
+      { id: "read", title: t(unread ? "mobile.agent.menu.markRead" : "mobile.agent.menu.markUnread") },
+      { id: "hide", title: t("mobile.agent.menu.hide") },
+      { id: "info", title: t("mobile.agent.menu.info") },
+    ],
+    onAction: (id) => {
+      sectionMenu.onAction(id);
+      if (id === "pin") toggleAgentPin(agent.id);
+      if (id === "read") (unread ? markAgentRead : markAgentUnread)(agent.id);
+      if (id === "hide") hideAgent(agent.id);
+      if (id === "info")
+        router.push({ pathname: "/agent-info/[agentId]", params: { agentId: agent.id, serverId: agent.serverId } });
+    },
+  };
   return (
     <Row
+      menu={menu}
+      name={agent.name}
       selected={selected}
       label={t("mobile.workspace.shell.openChat", { name: agent.name })}
       onPress={() => router.push({ pathname: "/chat/[agentId]", params: { agentId: agent.id } })}
@@ -108,8 +160,32 @@ function ChannelRow({ channel, serverId, selected }: { channel: ChannelSummary; 
   const { t } = useText();
   const foreground = useThemeColor("foreground");
   const preview = channel.lastMessage ? `${channel.lastMessage.authorName}: ${channel.lastMessage.text}` : "";
+  const { hideChannel, pinnedAgentIds, pinnedChannelIds, toggleChannelPin } = useMobileWorkspace();
+  const sectionMenu = useChatSectionMenu(serverId, channel.id);
+  const pinned = pinnedChannelIds.includes(channel.id);
+  const menu: RowMenu = {
+    actions: [
+      {
+        id: "pin",
+        title: t(pinned ? "mobile.agent.pin.unpin" : "mobile.agent.pin.pin"),
+        attributes: { disabled: !canToggleAgentPin([...pinnedAgentIds, ...pinnedChannelIds], channel.id) },
+      },
+      ...sectionMenu.androidActions,
+      { id: "hide", title: t("mobile.agent.menu.hide") },
+      { id: "info", title: t("mobile.agent.menu.info") },
+    ],
+    onAction: (id) => {
+      sectionMenu.onAction(id);
+      if (id === "pin") toggleChannelPin(channel.id, serverId);
+      if (id === "hide") hideChannel(channel.id, serverId);
+      if (id === "info")
+        router.push({ pathname: "/channel-info/[channelId]", params: { channelId: channel.id, serverId } });
+    },
+  };
   return (
     <Row
+      menu={menu}
+      name={channel.name}
       selected={selected}
       label={t("mobile.workspace.shell.openChat", { name: channel.name })}
       onPress={() => router.push({ pathname: "/channel/[channelId]", params: { channelId: channel.id, serverId } })}
@@ -126,6 +202,77 @@ function ChannelRow({ channel, serverId, selected }: { channel: ChannelSummary; 
       preview={markdownPreviewText(preview)}
       unread={channel.unreadCount > 0}
     />
+  );
+}
+
+/**
+ * A section's title. Tapping it folds the section away or opens it again; the dots open its
+ * actions. The default group of chats without a section has the same header.
+ */
+function SectionHeader({
+  id,
+  name,
+  empty,
+  collapsed,
+  visibleSectionIds,
+  onToggle,
+}: {
+  id: string;
+  name: string;
+  empty: boolean;
+  collapsed: boolean;
+  visibleSectionIds: string[];
+  onToggle: () => void;
+}) {
+  const { t } = useText();
+  const foreground = String(useThemeColor("foreground"));
+  const [open, setOpen] = useState(false);
+  const { actions, onAction } = useSectionActions({ id, name, visibleSectionIds });
+  const Chevron = collapsed ? ChevronRight : ChevronDown;
+  return (
+    <View className="pt-3 pl-5 pr-2">
+      <View className="flex-row items-center">
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t(collapsed ? "mobile.agent.section.expand" : "mobile.agent.section.collapse", { name })}
+          accessibilityState={{ expanded: !collapsed }}
+          onPress={() => {
+            void haptics.selection();
+            onToggle();
+          }}
+          className="min-h-11 min-w-0 flex-1 flex-row items-center gap-2"
+          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+        >
+          <Chevron color={foreground} size={18} strokeWidth={2.5} />
+          <Typography
+            type="body-xs"
+            weight="bold"
+            numberOfLines={1}
+            className="tracking-openbot-wide min-w-0 flex-1 uppercase"
+          >
+            {name}
+          </Typography>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("mobile.agent.section.options", { name })}
+          onPress={() => {
+            void haptics.selection();
+            setOpen(true);
+          }}
+          className="size-11 items-center justify-center"
+          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+        >
+          <Ellipsis color={foreground} size={20} strokeWidth={2} />
+        </Pressable>
+      </View>
+      {empty && !collapsed ? (
+        <Typography.Paragraph type="body-sm" className="pb-2">
+          {t("mobile.agent.section.empty")}
+        </Typography.Paragraph>
+      ) : null}
+      {open ? <ActionSheet title={name} actions={actions} onSelect={onAction} onClose={() => setOpen(false)} /> : null}
+    </View>
   );
 }
 
@@ -200,6 +347,7 @@ export function SimpleChatList() {
   } = useMobileWorkspace();
   const channels = useChannels(activeServer.id);
   const sidebar = sidebarByServer[activeServer.id];
+  const collapsed = useCollapsedSections(activeServer.id);
   const items = useMemo(() => {
     const visibleChannels = channels.channels.filter(
       (channel) => !channel.archived && !hiddenChannelIds.includes(channel.id),
@@ -212,8 +360,13 @@ export function SimpleChatList() {
       sidebar?.layout ?? null,
       activeAgents.filter((agent) => !pinnedAgentIds.includes(agent.id)),
       visibleChannels.filter((channel) => !pinnedChannelIds.includes(channel.id)),
-      undefined,
+      collapsed,
       t,
+    ).map((item) =>
+      // Next to sections of the person's own, the default group is simply what is not in one.
+      item.kind === "section" && item.id === SIDEBAR_UNASSIGNED_SECTION_ID && sidebar?.layout?.sections.length
+        ? { ...item, name: t("mobile.agent.section.unassigned") }
+        : item,
     );
     const pinned = [
       ...pinnedChannels.map((channel) => ({ kind: "channel" as const, id: channel.id, channel })),
@@ -226,7 +379,20 @@ export function SimpleChatList() {
           ...rest,
         ]
       : rest;
-  }, [activeAgents, channels.channels, hiddenChannelIds, pinnedAgentIds, pinnedChannelIds, sidebar?.layout, t]);
+  }, [
+    activeAgents,
+    channels.channels,
+    collapsed,
+    hiddenChannelIds,
+    pinnedAgentIds,
+    pinnedChannelIds,
+    sidebar?.layout,
+    t,
+  ]);
+  const sectionIds = useMemo(
+    () => items.flatMap((item) => (item.kind === "section" && item.id !== "pinned" ? [item.id] : [])),
+    [items],
+  );
   const status =
     activeServer.state === "online"
       ? t("mobile.workspace.status.online")
@@ -283,11 +449,22 @@ export function SimpleChatList() {
         contentContainerStyle={{ paddingBottom: 16, flexGrow: 1 }}
         renderItem={({ item }) =>
           item.kind === "section" ? (
-            <View className="px-5 pt-4 pb-1">
-              <Typography type="body-xs" weight="bold" className="tracking-openbot-wide uppercase">
-                {item.name}
-              </Typography>
-            </View>
+            item.id === "pinned" ? (
+              <View className="px-5 pt-4 pb-1">
+                <Typography type="body-xs" weight="bold" className="tracking-openbot-wide uppercase">
+                  {item.name}
+                </Typography>
+              </View>
+            ) : (
+              <SectionHeader
+                id={item.id}
+                name={item.name}
+                empty={item.empty}
+                visibleSectionIds={sectionIds}
+                collapsed={collapsed.has(item.id)}
+                onToggle={() => toggleSectionCollapsed(activeServer.id, item.id)}
+              />
+            )
           ) : item.kind === "agent" ? (
             <AgentRow agent={item.agent} selected={openChat?.id === item.agent.id} />
           ) : (

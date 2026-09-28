@@ -21,6 +21,7 @@ import { loadAppearance, useAppearance } from "@/features/settings/model/appeara
 import { loadDictationLanguage } from "@/features/settings/model/dictation-language";
 import { loadFontSize } from "@/features/settings/model/font-size";
 import { loadHapticsPreference } from "@/features/settings/model/haptics";
+import { loadCollapsedSections } from "@/features/simple/model/collapsed-sections";
 import { AppLoadingOverlayProvider, useAppLoadingOverlay } from "@/shared/components/app-loading-overlay";
 import { BloubAnimationProvider } from "@/shared/components/bloub-loader";
 import { SplashBackdrop } from "@/shared/components/splash-backdrop";
@@ -169,6 +170,7 @@ export default function RootLayout() {
   useEffect(() => {
     void loadAppearance().catch(() => undefined);
     void loadFontSize().catch(() => undefined);
+    void loadCollapsedSections();
     void loadHapticsPreference().catch(() => undefined);
     void loadDictationLanguage().catch(() => undefined);
     void loadAppLanguage().catch(() => undefined);

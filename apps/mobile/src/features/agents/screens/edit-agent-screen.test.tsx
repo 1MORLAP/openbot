@@ -1875,10 +1875,10 @@ it("moves a chat from the native submenu without opening a sheet", async () => {
     return useChatSectionMenu(host.id, original.id).menu;
   }
   await act(() => root.render(<Menu />));
-  expect(screen.queryByRole("button", { name: "Agents" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Unassigned" })).toBeNull();
   await click("Move to section");
   expect(screen.getByRole("button", { name: "Work" }).hasAttribute("disabled")).toBe(true);
-  await click("Agents");
+  await click("Unassigned");
   expect(workspace.mutateSidebarLayout).toHaveBeenLastCalledWith(host.id, {
     type: "assign",
     agentId: original.id,
@@ -1895,8 +1895,8 @@ it("keeps a failed submenu move available for retry", async () => {
   }
   await act(() => root.render(<Menu />));
   await click("Move to section");
-  await click("Agents");
+  await click("Unassigned");
   expect(mocks.alert).toHaveBeenCalledWith("Could not move chat", "Move failed");
-  await click("Agents");
+  await click("Unassigned");
   expect(workspace.mutateSidebarLayout).toHaveBeenCalledTimes(2);
 });
