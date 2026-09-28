@@ -28,6 +28,7 @@
     },
     "plugins": [
       "./plugins/with-rocketsim",
+      "./plugins/with-display-zoom",
       "expo-router",
       [
         "expo-splash-screen",

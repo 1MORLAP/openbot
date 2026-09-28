@@ -14,6 +14,7 @@ import {
 } from "@/features/workspace/components/use-connection-appearance";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import { agentActivityMood } from "@/features/workspace/model/agent-activity";
+import { useEinkMode } from "@/shared/lib/eink";
 import { AgentPhoto, type AgentPhotoProps } from "./agent-photo";
 
 interface BloubAvatarProps extends AgentPhotoProps {
@@ -83,7 +84,9 @@ const AnimatedAvatarPreview = memo(function AnimatedAvatarPreview({
   const frame = useBloubActivityFrame(seed, mood, animateIdle && !disconnected);
   const bodyProps = useAnimatedProps(() => frame.get().body);
   const maskId = `bloub-${useId().replaceAll(":", "")}`;
-  const color = getBloubAvatarColor(seed, hue);
+  // E-ink draws every avatar solid black, since hues collapse into similar greys.
+  const eink = useEinkMode();
+  const color = eink ? "#000000" : getBloubAvatarColor(seed, hue);
 
   return (
     <Svg
@@ -135,6 +138,7 @@ export const AvatarThumbnail = memo(function AvatarThumbnail({
   size = 48,
   disconnected = false,
 }: Omit<BloubAvatarProps, "agentId"> & { disconnected?: boolean }) {
+  const eink = useEinkMode();
   const frame = useMemo(() => {
     const geometry = bloubActivityGeometry(seed);
     return new BotEngine(100, "idle", geometry.radii, geometry.expression).sample(0);
@@ -143,7 +147,7 @@ export const AvatarThumbnail = memo(function AvatarThumbnail({
     <Svg
       accessibilityElementsHidden
       accessible={false}
-      opacity={disconnected ? DISCONNECTED_APPEARANCE.opacity : 1}
+      opacity={disconnected && !eink ? DISCONNECTED_APPEARANCE.opacity : 1}
       height={size}
       pointerEvents="none"
       viewBox="-158 -158 316 316"
@@ -151,7 +155,7 @@ export const AvatarThumbnail = memo(function AvatarThumbnail({
     >
       <Path
         d={frame.bodyPath}
-        fill={thumbnailColor(getBloubAvatarColor(seed, hue), disconnected)}
+        fill={eink ? "#000000" : thumbnailColor(getBloubAvatarColor(seed, hue), disconnected)}
         opacity={frame.bodyAlpha}
       />
       {(["left", "right"] as const).map((side) => {

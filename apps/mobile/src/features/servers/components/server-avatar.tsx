@@ -12,6 +12,7 @@ import { useMobileSession } from "@/features/auth/context/mobile-session-context
 import { loadServerLogo } from "@/features/servers/model/server-logo";
 import { DISCONNECTED_APPEARANCE } from "@/features/workspace/components/use-connection-appearance";
 import type { MobileServer } from "@/features/workspace/model/workspace-types";
+import { useEinkMode } from "@/shared/lib/eink";
 
 const INK = "rgba(0, 0, 0, 0.72)";
 const DOT = 12;
@@ -79,12 +80,14 @@ export function ServerAvatar({
         : server.state === "connecting" && server.initialConnectionPending
           ? warning
           : offline;
-  const muted = showStatus && server.state !== "online";
+  const eink = useEinkMode();
+  const muted = showStatus && server.state !== "online" && !eink;
+  const ink = eink ? "#ffffff" : INK;
   const tile = (
     <View
       className="items-center justify-center"
       style={{
-        backgroundColor: thumbnailColor(getBloubAvatarColor(server.id, null), muted),
+        backgroundColor: eink ? "#000000" : thumbnailColor(getBloubAvatarColor(server.id, null), muted),
         borderCurve: "continuous",
         borderRadius: size * 0.32,
         height: size,
@@ -94,9 +97,9 @@ export function ServerAvatar({
       }}
     >
       {server.kind === "local" ? (
-        <Monitor color={INK} size={size * 0.42} strokeWidth={2} />
+        <Monitor color={ink} size={size * 0.42} strokeWidth={2} />
       ) : (
-        <Typography weight="semibold" style={{ color: INK, fontSize: size * 0.32, lineHeight: size * 0.42 }}>
+        <Typography weight="semibold" style={{ color: ink, fontSize: size * 0.32, lineHeight: size * 0.42 }}>
           {serverInitials(server.name)}
         </Typography>
       )}

@@ -47,6 +47,8 @@ export const messages = {
   "mobile.settings.appearance.dark": "ダーク",
   "mobile.settings.appearance.eink": "E-ink",
   "mobile.settings.appearance.theme": "テーマ",
+  "mobile.settings.appearance.zoom": "ズーム",
+  "mobile.settings.appearance.zoomFooter": "ズームはアプリ全体を拡大します。変更するとアプリが再起動します。",
   "mobile.settings.feedback.title": "フィードバック",
   "mobile.settings.feedback.footer": "このデバイスでのアプリ操作の触覚フィードバックです。",
   "mobile.settings.feedback.haptics": "触覚フィードバック",

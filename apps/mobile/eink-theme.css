@@ -1,7 +1,8 @@
 /*
- * E-ink theme. Electrophoretic panels show about 16 grey levels, ghost on every
- * repaint and wash out low-contrast greys, so this theme is paper white with pure
- * black text, solid borders, no translucency and no shadows. Status colours stay
+ * E-ink theme. Electrophoretic panels show 16 grey levels, ghost on every repaint
+ * and wash out low-contrast greys, so this theme is paper white with pure black
+ * text at every emphasis level, solid borders, no translucency and no shadows.
+ * Greys appear only as flat fills on exact panel levels (#dd, #bb, #ee). Status colours stay
  * dark enough to read as black on greyscale panels and as colour on Kaleido panels.
  *
  * uniwind learns a theme's variables only from its @variant block, so this block
@@ -17,16 +18,16 @@
       --openbot-bg-native-sidebar: #ffffff;
       --openbot-bg-sidebar: #ffffff;
       --openbot-bg-surface: #ffffff;
-      --openbot-bg-surface-raised: #f0f0f0;
-      --openbot-bg-control: #e6e6e6;
-      --openbot-bg-control-active: #cccccc;
+      --openbot-bg-surface-raised: #eeeeee;
+      --openbot-bg-control: #dddddd;
+      --openbot-bg-control-active: #bbbbbb;
       --openbot-bg-overlay: rgba(0, 0, 0, 0.5);
       --openbot-border: #000000;
       --openbot-border-strong: #000000;
       --openbot-text-primary: #000000;
-      --openbot-text-secondary: #1a1a1a;
-      --openbot-text-muted: #333333;
-      --openbot-text-dim: #555555;
+      --openbot-text-secondary: #000000;
+      --openbot-text-muted: #000000;
+      --openbot-text-dim: #000000;
       --openbot-text-on-accent: #ffffff;
       --openbot-text-on-light: #000000;
       --openbot-text-on-status: #ffffff;
@@ -50,46 +51,46 @@
       --openbot-tracking-wide: 0.02em;
       --openbot-bg-sheet: #ffffff;
       --openbot-bg-grouped: #ffffff;
-      --openbot-text-grouped-secondary: #333333;
+      --openbot-text-grouped-secondary: #000000;
       --openbot-border-grouped: #000000;
       --openbot-radius-grouped: 8px;
       --openbot-file-blue: #000000;
-      --openbot-file-blue-soft: #e6e6e6;
+      --openbot-file-blue-soft: #eeeeee;
       --openbot-file-yellow: #000000;
-      --openbot-file-yellow-soft: #e6e6e6;
+      --openbot-file-yellow-soft: #eeeeee;
       --openbot-file-orange: #000000;
-      --openbot-file-orange-soft: #e6e6e6;
+      --openbot-file-orange-soft: #eeeeee;
       --openbot-file-teal: #000000;
-      --openbot-file-teal-soft: #e6e6e6;
+      --openbot-file-teal-soft: #eeeeee;
       --openbot-file-green: #000000;
-      --openbot-file-green-soft: #e6e6e6;
+      --openbot-file-green-soft: #eeeeee;
       --openbot-file-red: #000000;
-      --openbot-file-red-soft: #e6e6e6;
+      --openbot-file-red-soft: #eeeeee;
       --openbot-file-pink: #000000;
-      --openbot-file-pink-soft: #e6e6e6;
+      --openbot-file-pink-soft: #eeeeee;
       --openbot-file-default: #000000;
-      --openbot-file-default-soft: #e6e6e6;
+      --openbot-file-default-soft: #eeeeee;
 
       /* HeroUI Native variables. global.css aliases most of them to the tokens above. */
       --background: #ffffff;
       --foreground: #000000;
       --surface: #ffffff;
       --surface-foreground: #000000;
-      --surface-secondary: #e6e6e6;
+      --surface-secondary: #dddddd;
       --surface-secondary-foreground: #000000;
-      --surface-tertiary: #f0f0f0;
+      --surface-tertiary: #eeeeee;
       --surface-tertiary-foreground: #000000;
       --overlay: #ffffff;
       --overlay-foreground: #000000;
       --backdrop: rgba(0, 0, 0, 0.5);
-      --muted: #333333;
-      --default: #e6e6e6;
+      --muted: #000000;
+      --default: #dddddd;
       --default-foreground: #000000;
       --accent: #000000;
       --accent-foreground: #ffffff;
       --field-background: #ffffff;
       --field-foreground: #000000;
-      --field-placeholder: #555555;
+      --field-placeholder: #4d4d4d;
       --field-border: #000000;
       --success: #1b5e20;
       --success-foreground: #ffffff;

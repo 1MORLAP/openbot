@@ -19,6 +19,36 @@ import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspac
 import { haptics } from "@/shared/lib/haptics";
 import { speechRecognition } from "@/shared/lib/speech-recognition";
 import { useText } from "@/shared/lib/text";
+import { DisplayZoom } from "../../../../modules/display-zoom";
+
+// Changing the zoom restarts the app, so the picker only needs the value read at startup.
+function ZoomRow({ dark }: { dark: boolean }) {
+  const { t } = useText();
+  const [zoom] = useState(() => DisplayZoom?.getZoom() ?? 1);
+  const zoomModule = DisplayZoom;
+  if (!zoomModule) return null;
+  return (
+    <SettingsRow
+      trailing={
+        <Host matchContents colorScheme={dark ? "dark" : "light"}>
+          <Picker
+            selectedValue={String(zoom)}
+            onValueChange={(next) => {
+              void haptics.selection();
+              zoomModule.setZoom(Number(next));
+            }}
+          >
+            {zoomModule.zooms.map((value) => (
+              <Picker.Item key={value} label={`${Math.round(value * 100)}%`} value={String(value)} />
+            ))}
+          </Picker>
+        </Host>
+      }
+    >
+      <Typography.Paragraph>{t("mobile.settings.appearance.zoom")}</Typography.Paragraph>
+    </SettingsRow>
+  );
+}
 
 function LanguageSection({ dark }: { dark: boolean }) {
   const { t } = useText();
@@ -144,7 +174,12 @@ export function GeneralSettingsScreen() {
     <SettingsContent>
       <SettingsSection
         title={t("mobile.settings.appearance.title")}
-        footer={error || t("mobile.settings.appearance.footer")}
+        footer={
+          error ||
+          [t("mobile.settings.appearance.footer"), DisplayZoom ? t("mobile.settings.appearance.zoomFooter") : null]
+            .filter(Boolean)
+            .join(" ")
+        }
       >
         <SettingsRow
           trailing={
@@ -171,6 +206,7 @@ export function GeneralSettingsScreen() {
         >
           <Typography.Paragraph>{t("mobile.settings.appearance.theme")}</Typography.Paragraph>
         </SettingsRow>
+        <ZoomRow dark={theme === "dark"} />
       </SettingsSection>
       <LanguageSection dark={theme === "dark"} />
       <DictationSection dark={theme === "dark"} />

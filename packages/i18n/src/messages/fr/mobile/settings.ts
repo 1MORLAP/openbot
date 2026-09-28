@@ -47,6 +47,8 @@ export const messages = {
   "mobile.settings.appearance.dark": "Sombre",
   "mobile.settings.appearance.eink": "E-ink",
   "mobile.settings.appearance.theme": "Thème",
+  "mobile.settings.appearance.zoom": "Zoom",
+  "mobile.settings.appearance.zoomFooter": "Le zoom agrandit toute l’app. Le modifier redémarre l’app.",
   "mobile.settings.feedback.title": "Retour",
   "mobile.settings.feedback.footer": "Retour tactile pour les actions de l’app sur cet appareil.",
   "mobile.settings.feedback.haptics": "Retour haptique",

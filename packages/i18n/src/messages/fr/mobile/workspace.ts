@@ -35,4 +35,8 @@ export const messages = {
   "mobile.workspace.error.connectFailed": "La connexion au serveur a échoué.",
   "mobile.workspace.error.disconnectFailed": "Le serveur ne s’est pas déconnecté correctement.",
   "mobile.workspace.error.queueEditRejected": "L’hôte n’a pas accepté cette modification.",
+  "mobile.workspace.split.empty": "Choisissez un bot ou un canal pour l’ouvrir ici.",
+  "mobile.workspace.split.showDetails": "Afficher les détails",
+  "mobile.workspace.split.hideDetails": "Masquer les détails",
+  "mobile.workspace.split.members": "Membres",
 } as const satisfies PartialTranslation<typeof source>;

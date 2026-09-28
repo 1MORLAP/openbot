@@ -31,4 +31,8 @@ export const messages = defineMessages("mobile.workspace", {
   "mobile.workspace.error.connectFailed": "The server connection failed.",
   "mobile.workspace.error.disconnectFailed": "The server did not disconnect cleanly.",
   "mobile.workspace.error.queueEditRejected": "The host did not accept this edit.",
+  "mobile.workspace.split.empty": "Choose a bot or channel to open it here.",
+  "mobile.workspace.split.showDetails": "Show details",
+  "mobile.workspace.split.hideDetails": "Hide details",
+  "mobile.workspace.split.members": "Members",
 });

@@ -33,4 +33,8 @@ export const messages = {
   "mobile.workspace.error.connectFailed": "サーバーへの接続に失敗しました。",
   "mobile.workspace.error.disconnectFailed": "サーバーの切断が正常に完了しませんでした。",
   "mobile.workspace.error.queueEditRejected": "ホストはこの編集を受け付けませんでした。",
+  "mobile.workspace.split.empty": "ボットまたはチャンネルを選ぶと、ここに表示されます。",
+  "mobile.workspace.split.showDetails": "詳細を表示",
+  "mobile.workspace.split.hideDetails": "詳細を隠す",
+  "mobile.workspace.split.members": "メンバー",
 } as const satisfies PartialTranslation<typeof source>;

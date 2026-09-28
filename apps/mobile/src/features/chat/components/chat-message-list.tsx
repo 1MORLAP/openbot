@@ -62,7 +62,7 @@ import { type ChatMessage, indexChatMessages, type RoutineMarkerEvent } from "@/
 import { useConnectionAppearance } from "@/features/workspace/components/use-connection-appearance";
 import type { MobileAgent } from "@/features/workspace/context/mobile-workspace-context";
 import { agentActivityMood, type MobileAgentActivity } from "@/features/workspace/model/agent-activity";
-import { useReducedMotion } from "@/shared/lib/eink";
+import { useEinkMode, useReducedMotion } from "@/shared/lib/eink";
 import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
 import type { ChatBubbleMessage } from "../context/message-actions-context";
@@ -250,6 +250,8 @@ interface MessageRowShared {
   agents: MobileAgent[];
   agentsById: ReadonlyMap<string, MobileAgent>;
   targetKind: ChatTarget["kind"];
+  /** User messages sit in a filled bubble: always for agents, and in channels on e-ink. */
+  filledUserBubbles: boolean;
   serverId: string;
   canSend: boolean;
   muted: ViewStyle["backgroundColor"];
@@ -375,7 +377,7 @@ const MessageRow = memo(function MessageRow({
   const {
     agents,
     agentsById,
-    targetKind,
+    filledUserBubbles,
     serverId,
     canSend,
     muted,
@@ -551,12 +553,12 @@ const MessageRow = memo(function MessageRow({
             collapsed={waiting}
             className={
               message.author === "user"
-                ? `self-end rounded-[30px] px-4 py-3 ${targetKind === "channel" ? "bg-control/60" : ""} ${message.attachments?.length ? "max-w-[88%]" : "max-w-full"}`
+                ? `self-end rounded-[30px] px-4 py-3 ${filledUserBubbles ? "" : "bg-control/60"} ${message.attachments?.length ? "max-w-[88%]" : "max-w-full"}`
                 : `max-w-full self-start rounded-[30px] ${waiting ? "" : "px-4 py-3"}`
             }
             style={[
               { borderCurve: "circular", overflow: "hidden" },
-              message.author === "user" && targetKind === "agent" ? userBubbleStyle : undefined,
+              message.author === "user" && filledUserBubbles ? userBubbleStyle : undefined,
             ]}
           >
             <ChatMarkdown
@@ -564,7 +566,7 @@ const MessageRow = memo(function MessageRow({
               body={message.body}
               live={message.streaming}
               selectable={message.author === "user"}
-              color={message.author === "user" && targetKind === "agent" ? userForeground : foreground}
+              color={message.author === "user" && filledUserBubbles ? userForeground : foreground}
               playback={playback}
               animationEnabled={shared.animationActive && arrivals.has(message.id)}
             />
@@ -708,7 +710,9 @@ export function ChatMessageList({
     "--openbot-text-primary",
     "--openbot-text-muted",
   ]);
-  const userForeground = String(userForegroundColor);
+  // E-ink: user messages are white on black, the highest contrast the panel has.
+  const eink = useEinkMode();
+  const userForeground = eink ? "#ffffff" : String(userForegroundColor);
   const themeForeground = String(themeForegroundColor);
   const themeMuted = String(themeMutedColor);
   const reducedMotion = useReducedMotion();
@@ -732,10 +736,12 @@ export function ChatMessageList({
     [replySession],
   );
   const arrivals = useMessageArrivals(replySession.key, messages, animateMessages && historyState === "ready");
-  const userBubbleColor = getBloubAvatarColor(
-    target.kind === "agent" ? target.avatarSeed : target.id,
-    target.kind === "agent" ? target.avatarHue : null,
-  );
+  const userBubbleColor = eink
+    ? "#000000"
+    : getBloubAvatarColor(
+        target.kind === "agent" ? target.avatarSeed : target.id,
+        target.kind === "agent" ? target.avatarHue : null,
+      );
   const appearance = useConnectionAppearance(!canSend);
   const red = Number.parseInt(userBubbleColor.slice(1, 3), 16);
   const green = Number.parseInt(userBubbleColor.slice(3, 5), 16);
@@ -785,6 +791,7 @@ export function ChatMessageList({
       agents,
       agentsById,
       targetKind: target.kind,
+      filledUserBubbles: target.kind === "agent" || eink,
       serverId: target.serverId,
       canSend,
       muted,
@@ -810,6 +817,7 @@ export function ChatMessageList({
       agents,
       agentsById,
       target.kind,
+      eink,
       target.serverId,
       canSend,
       muted,
