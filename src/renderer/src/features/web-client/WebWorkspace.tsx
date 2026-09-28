@@ -40,6 +40,7 @@ import { computeSidebarAgentStates } from "@openbot/ui/features/sidebar/sidebar-
 import { useText } from "@openbot/ui/text";
 import { createEffect, createMemo, createSignal, onCleanup, onSettled, Show, untrack } from "solid-js";
 import { toAgentMessage, toAgentMessages } from "../../app-message-projection";
+import { playCompletionSoundForAgentEvent } from "../../completion-sound";
 import { isGlobalSearchShortcut } from "../../global-search-shortcut";
 import { LayoutProvider, useLayout } from "../../layout";
 import { PlatformProvider } from "../../platform";
@@ -170,7 +171,11 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   } catch {
     clearStoredQueueEdit();
   }
-  const controller = createConversationController({ onTypingChange: () => {} });
+  /** As on desktop: the host shows the other members which agent this account is writing to. */
+  function setTyping(agentId: string, typing: boolean): void {
+    workspace.runtime.setTyping(typing ? agentId : null, typing);
+  }
+  const controller = createConversationController({ onTypingChange: setTyping });
   /**
    * Releases an open queue edit on the connected host first, so its message can run after sign-out.
    * When the host does not confirm, the stored edit stays for this account, which can release it after sign-in.
@@ -365,6 +370,11 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       },
     },
   };
+  onCleanup(
+    workspace.onHostEvent((event) => {
+      if (event.type === "turn-completed") playCompletionSoundForAgentEvent(event, workspace.state.agents);
+    }),
+  );
   const [searchOpen, setSearchOpen] = createSignal(false);
   const [messageFocusRequest, setMessageFocusRequest] = createSignal<{
     agentId: string;
@@ -615,10 +625,19 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       return undefined;
     return () => clearAgentContext(hostRequest(), agent.id);
   });
+  /** As on desktop: an answered prompt stays until its bubble has shown the answers. */
+  const [answeredPrompt, setAnsweredPrompt] = createSignal<Extract<AgentEvent, { type: "prompt" }>>();
+  // The bubble unmounts with its conversation and then cannot report that it showed the answers.
+  createEffect(
+    () => ({ agentId: workspace.state.selectedId, hidden: creating() || channelOpen() }),
+    () => setAnsweredPrompt(undefined),
+  );
   const prompt = createMemo<Extract<AgentEvent, { type: "prompt" }> | undefined>(() => {
     if (workspace.state.status !== "online") return;
     const page = workspace.conversation()?.page;
     if (!page?.threadId) return;
+    const answered = answeredPrompt();
+    if (answered?.agentId === page.agentId && answered.threadId === page.threadId) return answered;
     const pending = workspace.state.prompts.find(
       (item) => item.agentId === page.agentId && item.threadId === page.threadId,
     );
@@ -644,6 +663,20 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       }),
     ),
   );
+  /** The replied-to messages that are not on the loaded pages. The host sends them with each page. */
+  const messageReferences = createMemo(() => {
+    const page = workspace.conversation()?.page;
+    if (!page) return {};
+    return Object.fromEntries(
+      Object.entries(page.references).map(([id, reference]) => {
+        const message = toAgentMessage(reference, page.agentId);
+        return [
+          id,
+          { ...message, attachments: message.attachments?.map((attachment) => ({ ...attachment, previewUrl: null })) },
+        ];
+      }),
+    );
+  });
   createEffect(
     () => workspace.state.error,
     (error) => {
@@ -656,6 +689,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       let active = true;
       usageGeneration += 1;
       setAccountUsage(null);
+      setAnsweredPrompt(undefined);
       setCreating(false);
       modelsShown = ++modelsRequest;
       setModels([]);
@@ -1109,6 +1143,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 </Show>
               }
               agentStatus={workspace.state.status === "online" ? status() : CONNECTING_STATUS}
+              accountUsage={accountUsage()}
               // As in the desktop app on a joined host: an owner or admin downloads the host's
               // providers, and the sign-in stays in the host's settings.
               providerRuntimeStatuses={providerSettings()?.providerRuntimeStatuses}
@@ -1119,6 +1154,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
               agents={workspace.profiles()}
               modelOptions={models()}
               messages={messages()}
+              messageReferences={messageReferences()}
               unreadCount={readState()?.unreadCount ?? 0}
               firstUnreadMessageId={readState()?.firstUnreadMessageId ?? null}
               loaded={Boolean(workspace.conversation()?.page)}
@@ -1191,12 +1227,23 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 return { messageIds: result.results.map((item) => item.message.id), total: result.total };
               }}
               onOpenSearchMessage={(messageId) => workspace.run(() => workspace.openSearchMessage(messageId))}
-              onTypingChange={() => {}}
+              onTypingChange={setTyping}
               onAnswerPrompt={async (answers) => {
                 const question = prompt();
                 if (!question) return false;
-                await workspace.answer({ requestId: question.requestId, answers });
+                setAnsweredPrompt(question);
+                try {
+                  await workspace.answer({ requestId: question.requestId, answers });
+                } catch (error) {
+                  setAnsweredPrompt(undefined);
+                  throw error;
+                }
                 return true;
+              }}
+              onPromptResolutionPresented={(_agentId, turnId, requestId) => {
+                const answered = answeredPrompt();
+                if (answered?.turnId === turnId && String(answered.requestId) === String(requestId))
+                  setAnsweredPrompt(undefined);
               }}
               onRespondToApproval={async (decision) => {
                 const item = approval();
