@@ -278,6 +278,13 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
         Boolean(current.providers?.some((item) => item.state === "available" && item.connectionState !== "connecting")))
     );
   });
+  // The composer shows the usage-limit notice with the account menu closed, so read once for each target.
+  createEffect(
+    () => (usageReady() ? usageTargetKey() : null),
+    (target) => {
+      if (target) void refreshUsage().catch(() => undefined);
+    },
+  );
   /** The opened host has its own connection. Another host shows its status connection, as on mobile. */
   function hostState(hostId: string): ServerConnectionState {
     if (hostId === workspace.state.host?.hostId) return workspace.state.status;
