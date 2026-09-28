@@ -2,8 +2,6 @@ import * as SecureStore from "expo-secure-store";
 import { Uniwind } from "uniwind";
 import { create } from "zustand";
 
-import { isEinkDevice } from "@/shared/lib/eink-device";
-
 /**
  * Font size scales the app's text and nothing else: icons, controls and spacing keep their size.
  * HeroUI sizes text through the `--text-*` variables, which change live for every theme.
@@ -12,12 +10,8 @@ const key = "openbot.mobile.font-size.v1";
 export const FONT_SIZE_MIN = 0.7;
 export const FONT_SIZE_MAX = 2;
 
-/**
- * The size that 100% stands for: text 15% larger than the platform standard, and 20% larger on
- * e-ink readers.
- */
+/** The size that 100% stands for on every device: text 15% larger than the platform standard. */
 const BASE = 1.15;
-const EINK_BASE = 1.2;
 
 // Tailwind's type scale in points. Line heights are ratios, so they follow the size.
 const TYPE_SCALE: Record<string, number> = {
@@ -34,9 +28,9 @@ const THEMES = ["light", "dark", "eink"] as const;
 
 export const useFontSize = create<{ value: number; ready: boolean }>(() => ({ value: 1, ready: false }));
 
-/** The factor applied to text: the setting times the device's base size. */
+/** The factor applied to text: the setting times the base size. */
 export function fontScaleFor(value: number): number {
-  return value * (isEinkDevice() ? EINK_BASE : BASE);
+  return value * BASE;
 }
 
 function apply(value: number): void {
