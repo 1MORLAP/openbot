@@ -1,0 +1,230 @@
+import { Host, Switch } from "@expo/ui";
+import type { InstalledSkill } from "@openbot/contracts/ipc";
+import type { MobileTranslate } from "@openbot/i18n/mobile";
+import { type QueryKey, useQueryClient } from "@tanstack/react-query";
+import { Typography } from "heroui-native";
+import { useThemeColor } from "heroui-native/hooks";
+import { Trash2 } from "lucide-react-native";
+import { useState } from "react";
+import { Alert, Pressable } from "react-native";
+import { useUniwind } from "uniwind";
+import { SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
+import { type MobileAgent, useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import { haptics } from "@/shared/lib/haptics";
+import { currentText, useText } from "@/shared/lib/text";
+
+/**
+ * Agent info > Skills. An owner or admin turns a skill on or off and uninstalls it, as in the
+ * desktop agent settings; a skill in a folder that OpenBot does not manage stays read-only.
+ */
+export function AgentSkills({
+  agent,
+  skills,
+  manage,
+  queryKey,
+}: {
+  agent: MobileAgent;
+  skills: InstalledSkill[];
+  manage: boolean;
+  /** The query that holds `skills`. A saved change is written to it, so the list shows the host result. */
+  queryKey: QueryKey;
+}) {
+  const { t } = useText();
+  const workspace = useMobileWorkspace();
+  const queryClient = useQueryClient();
+  const [busy, setBusy] = useState<ReadonlySet<string>>(new Set());
+  const [removing, setRemoving] = useState<ReadonlySet<string>>(new Set());
+  const [error, setError] = useState<string | null>(null);
+
+  function updateSkills(change: (list: InstalledSkill[]) => InstalledSkill[]) {
+    queryClient.setQueryData<InstalledSkill[] | null>(queryKey, (list) => list && change(list));
+  }
+
+  function run(skill: InstalledSkill, send: () => Promise<void>, failure: string, onFailure?: () => void) {
+    setError(null);
+    setBusy((current) => new Set(current).add(skill.skillId));
+    send()
+      .then(() => void haptics.notification("success"))
+      .catch((cause: unknown) => {
+        void haptics.notification("error");
+        onFailure?.();
+        setError(currentText().errorMessage(cause, failure));
+      })
+      .finally(() => setBusy((current) => withoutItem(current, skill.skillId)));
+  }
+
+  function setEnabled(skill: InstalledSkill, enabled: boolean) {
+    void haptics.selection();
+    const replace = (next: InstalledSkill) =>
+      updateSkills((list) => list.map((item) => (item.skillId === skill.skillId ? next : item)));
+    // The switch moves at once. A read that started earlier must not put the old state back.
+    void queryClient.cancelQueries({ queryKey, exact: true });
+    replace({ ...skill, enabled });
+    run(
+      skill,
+      async () => {
+        const saved = await workspace.setAgentSkillEnabled(
+          { agentId: agent.id, skillId: skill.skillId, enabled },
+          agent.serverId,
+        );
+        replace({ ...skill, ...saved });
+      },
+      currentText().t(enabled ? "mobile.agent.skill.enableFailed" : "mobile.agent.skill.disableFailed", {
+        name: skill.name,
+      }),
+      () => replace(skill),
+    );
+  }
+
+  function uninstall(skill: InstalledSkill) {
+    setRemoving((current) => new Set(current).add(skill.skillId));
+    run(
+      skill,
+      async () => {
+        await workspace.uninstallAgentSkill(
+          {
+            agentId: agent.id,
+            skillId: skill.skillId,
+            ...(skill.state === "modified" ? { removeModified: true } : {}),
+          },
+          agent.serverId,
+        );
+        updateSkills((list) => list.filter((item) => item.skillId !== skill.skillId));
+        setRemoving((current) => withoutItem(current, skill.skillId));
+      },
+      currentText().t("mobile.agent.skill.uninstallFailed", { name: skill.name }),
+      () => setRemoving((current) => withoutItem(current, skill.skillId)),
+    );
+  }
+
+  function confirmUninstall(skill: InstalledSkill) {
+    const { t } = currentText();
+    Alert.alert(
+      t("mobile.agent.skill.uninstallTitle", { name: skill.name }),
+      t(skill.state === "modified" ? "mobile.agent.skill.uninstallModifiedBody" : "mobile.agent.skill.uninstallBody"),
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        { text: t("mobile.agent.skill.uninstall"), style: "destructive", onPress: () => uninstall(skill) },
+      ],
+    );
+  }
+
+  return (
+    <>
+      <SettingsSection>
+        {skills.map((skill) =>
+          manage && skill.origin !== "workspace" ? (
+            <ManagedSkillRow
+              key={skill.skillId}
+              skill={skill}
+              busy={busy.has(skill.skillId)}
+              removing={removing.has(skill.skillId)}
+              onEnabledChange={(enabled) => setEnabled(skill, enabled)}
+              onUninstall={() => confirmUninstall(skill)}
+            />
+          ) : (
+            <SkillRow key={skill.skillId} skill={skill} />
+          ),
+        )}
+        {skills.length === 0 ? (
+          <SettingsRow>
+            <Typography.Paragraph className="text-grouped-secondary">
+              {t("mobile.agent.info.noSkills")}
+            </Typography.Paragraph>
+          </SettingsRow>
+        ) : null}
+      </SettingsSection>
+      {error ? (
+        <Typography.Paragraph accessibilityRole="alert" className="text-danger-text">
+          {error}
+        </Typography.Paragraph>
+      ) : null}
+    </>
+  );
+}
+
+function SkillRow({ skill }: { skill: InstalledSkill }) {
+  const { t } = useText();
+  return (
+    <SettingsRow supportingText={skillMeta(skill, t, true)}>
+      <Typography.Paragraph numberOfLines={1}>{skill.name}</Typography.Paragraph>
+      <SkillDescription skill={skill} />
+    </SettingsRow>
+  );
+}
+
+function ManagedSkillRow({
+  skill,
+  busy,
+  removing,
+  onEnabledChange,
+  onUninstall,
+}: {
+  skill: InstalledSkill;
+  busy: boolean;
+  removing: boolean;
+  onEnabledChange: (enabled: boolean) => void;
+  onUninstall: () => void;
+}) {
+  const { t } = useText();
+  const { theme } = useUniwind();
+  const danger = useThemeColor("danger");
+  return (
+    <SettingsRow
+      disabled={removing}
+      supportingText={removing ? t("mobile.agent.skill.uninstalling") : skillMeta(skill, t, false)}
+      trailing={
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("mobile.agent.skill.uninstallNamed", { name: skill.name })}
+          accessibilityState={{ disabled: busy }}
+          disabled={busy}
+          hitSlop={8}
+          onPress={onUninstall}
+        >
+          <Trash2 size={18} color={String(danger)} />
+        </Pressable>
+      }
+    >
+      <Host
+        matchContents={{ vertical: true }}
+        style={{ width: "100%" }}
+        colorScheme={theme === "dark" ? "dark" : "light"}
+      >
+        {/* Older hosts send no `enabled`; such a skill is on. */}
+        <Switch label={skill.name} value={skill.enabled !== false} disabled={busy} onValueChange={onEnabledChange} />
+      </Host>
+      <SkillDescription skill={skill} />
+    </SettingsRow>
+  );
+}
+
+function SkillDescription({ skill }: { skill: InstalledSkill }) {
+  return skill.description ? (
+    <Typography.Paragraph type="body-xs" numberOfLines={3} className="text-grouped-secondary">
+      {skill.description}
+    </Typography.Paragraph>
+  ) : null;
+}
+
+function withoutItem(set: ReadonlySet<string>, item: string): ReadonlySet<string> {
+  const next = new Set(set);
+  next.delete(item);
+  return next;
+}
+
+/** A row with a switch shows the enabled state in the switch, so the text does not repeat it. */
+function skillMeta(skill: InstalledSkill, t: MobileTranslate, showDisabled: boolean): string {
+  const parts = [
+    skill.origin === "workspace"
+      ? (skill.location ?? t("mobile.agent.skill.workspaceFolder"))
+      : `v${skill.installedVersion}`,
+    skill.state === "update-available"
+      ? t("mobile.agent.skill.updateAvailable", { version: skill.availableVersion })
+      : null,
+    skill.state === "needs-repair" ? t("mobile.agent.skill.needsRepair") : null,
+    skill.state === "modified" ? t("mobile.agent.skill.modified") : null,
+    showDisabled && skill.enabled === false ? t("mobile.agent.skill.disabled") : null,
+  ];
+  return parts.filter(Boolean).join(" · ");
+}

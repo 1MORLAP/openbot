@@ -12,9 +12,11 @@ import {
   type InstalledSkill,
   parseChannelCommand,
   type Routine,
+  type SetEnabledSkillInput,
   type SidebarLayoutAction,
   type SidebarLayoutSnapshot,
   type StorageUsage,
+  type UninstallSkillInput,
   type UpdateAgentAdminSettingsInput,
   type UpdateAgentInput,
 } from "@openbot/contracts/ipc";
@@ -209,7 +211,12 @@ const workspace = {
   loadAgentMemories: vi.fn<() => Promise<AgentMemory[]>>(async () => []),
   loadAgentRoutines: vi.fn<() => Promise<Routine[]>>(async () => []),
   loadAgentAnalytics: vi.fn<() => Promise<AgentAnalytics | null>>(async () => null),
-  loadAgentSkills: vi.fn<() => Promise<InstalledSkill[] | null>>(async () => []),
+  loadAgentSkills: vi.fn<(agentId: string, serverId: string, manage?: boolean) => Promise<InstalledSkill[] | null>>(
+    async () => [],
+  ),
+  canManageAgentSkills: vi.fn((_serverId: string) => false),
+  setAgentSkillEnabled: vi.fn<(input: SetEnabledSkillInput, serverId: string) => Promise<InstalledSkill>>(),
+  uninstallAgentSkill: vi.fn<(input: UninstallSkillInput, serverId: string) => Promise<void>>(),
   loadAgentStorage: vi.fn<(agentId: string, serverId: string, force?: boolean) => Promise<StorageUsage | null>>(
     async () => null,
   ),
@@ -584,6 +591,9 @@ beforeEach(() => {
   workspace.loadAgentRoutines.mockReset().mockResolvedValue([]);
   workspace.loadAgentAnalytics.mockReset().mockResolvedValue(null);
   workspace.loadAgentSkills.mockReset().mockResolvedValue([]);
+  workspace.canManageAgentSkills.mockReset().mockReturnValue(false);
+  workspace.setAgentSkillEnabled.mockReset();
+  workspace.uninstallAgentSkill.mockReset();
   workspace.loadAgentStorage.mockReset().mockResolvedValue(null);
   workspace.deleteStoredFile.mockReset().mockResolvedValue();
   workspace.loadAgentAdminSettings.mockReset().mockResolvedValue(null);
@@ -789,10 +799,13 @@ it("lists the host skills read-only and hides built-in skills", async () => {
   ]);
   await renderSheet("skills");
   await screen.findByText("Writer");
-  expect(workspace.loadAgentSkills).toHaveBeenCalledWith(original.id, original.serverId);
+  expect(workspace.loadAgentSkills).toHaveBeenCalledWith(original.id, original.serverId, false);
   expect(screen.getByText("Drafts posts")).toBeTruthy();
   expect(screen.getByText("Notes")).toBeTruthy();
   expect(screen.queryByText("Built in")).toBeNull();
+  // A member cannot change skills.
+  expect(screen.queryByRole("switch")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Uninstall Writer" })).toBeNull();
   expect(screen.getByText("Skills for this agent are managed on the host.")).toBeTruthy();
 
   await act(() => root.unmount());
@@ -801,6 +814,108 @@ it("lists the host skills read-only and hides built-in skills", async () => {
   workspace.loadAgentSkills.mockResolvedValue(null);
   await renderSheet("skills");
   await screen.findByText("This host does not support skills. Update OpenBot on the host.");
+});
+
+it("lets an admin turn a skill off and on, and puts the old state back when the host refuses", async () => {
+  const writer: InstalledSkill = {
+    skillId: "writer",
+    slug: "writer",
+    name: "Writer",
+    installedVersion: 1,
+    availableVersion: 1,
+    state: "installed",
+    enabled: true,
+  };
+  const folder: InstalledSkill = { ...writer, skillId: "folder", slug: "folder", name: "Folder", origin: "workspace" };
+  workspace.servers = [{ ...host, role: "admin" }];
+  workspace.canManageAgentSkills.mockReturnValue(true);
+  workspace.loadAgentSkills.mockResolvedValue([writer, folder]);
+  let answer: (skill: InstalledSkill) => void = () => {};
+  workspace.setAgentSkillEnabled.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+  );
+  await renderSheet("skills");
+  const toggle = await screen.findByRole("switch", { name: "Writer" });
+  expect(workspace.loadAgentSkills).toHaveBeenCalledWith(original.id, original.serverId, true);
+  // A skill in a folder that OpenBot does not manage stays read-only.
+  expect(screen.queryByRole("switch", { name: "Folder" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Uninstall Folder" })).toBeNull();
+
+  await act(() => fireEvent.click(toggle));
+  expect(workspace.setAgentSkillEnabled).toHaveBeenCalledWith(
+    { agentId: original.id, skillId: "writer", enabled: false },
+    original.serverId,
+  );
+  // The switch moves before the host answers, and waits for the answer.
+  await waitFor(() => expect(screen.getByRole("switch", { name: "Writer" })).toHaveProperty("checked", false));
+  expect(screen.getByRole("switch", { name: "Writer" })).toHaveProperty("disabled", true);
+  await act(async () => answer({ ...writer, enabled: false }));
+  await waitFor(() => expect(screen.getByRole("switch", { name: "Writer" })).toHaveProperty("disabled", false));
+  expect(screen.getByRole("switch", { name: "Writer" })).toHaveProperty("checked", false);
+
+  workspace.setAgentSkillEnabled.mockRejectedValue(new Error("Sign in to the marketplace on the host."));
+  await act(() => fireEvent.click(screen.getByRole("switch", { name: "Writer" })));
+  await screen.findByText("Sign in to the marketplace on the host.");
+  expect(screen.getByRole("switch", { name: "Writer" })).toHaveProperty("checked", false);
+});
+
+it("uninstalls a skill after confirmation and keeps it when the host refuses", async () => {
+  const skill = { installedVersion: 1, availableVersion: 1, enabled: true };
+  workspace.servers = [{ ...host, role: "owner" }];
+  workspace.canManageAgentSkills.mockReturnValue(true);
+  workspace.loadAgentSkills.mockResolvedValue([
+    { ...skill, skillId: "writer", slug: "writer", name: "Writer", state: "installed" },
+    { ...skill, skillId: "notes", slug: "notes", name: "Notes", state: "modified" },
+  ]);
+  await renderSheet("skills");
+  await screen.findByRole("button", { name: "Uninstall Writer" });
+  await click("Uninstall Writer");
+  expect(mocks.alert).toHaveBeenLastCalledWith(
+    "Uninstall Writer?",
+    "OpenBot will remove this skill from the agent. Chat history stays.",
+    expect.any(Array),
+  );
+  expect(workspace.uninstallAgentSkill).not.toHaveBeenCalled();
+
+  workspace.uninstallAgentSkill.mockRejectedValueOnce(new Error("The host is busy."));
+  await act(async () => mocks.alert.mock.calls.at(-1)?.[2][1].onPress());
+  await screen.findByText("The host is busy.");
+  expect(screen.getByRole("switch", { name: "Writer" })).toBeTruthy();
+
+  workspace.uninstallAgentSkill.mockResolvedValue();
+  await click("Uninstall Writer");
+  await act(async () => mocks.alert.mock.calls.at(-1)?.[2][1].onPress());
+  await waitFor(() => expect(screen.queryByRole("switch", { name: "Writer" })).toBeNull());
+  expect(workspace.uninstallAgentSkill).toHaveBeenLastCalledWith(
+    { agentId: original.id, skillId: "writer" },
+    original.serverId,
+  );
+  expect(screen.queryByText("The host is busy.")).toBeNull();
+
+  // A skill with local changes says that its files go, and the host is told to delete them.
+  await click("Uninstall Notes");
+  expect(mocks.alert.mock.calls.at(-1)?.[1]).toBe(
+    "This skill has local changes in the agent workspace. Uninstall deletes those files. Chat history stays.",
+  );
+  await act(async () => mocks.alert.mock.calls.at(-1)?.[2][1].onPress());
+  await waitFor(() => expect(screen.queryByRole("switch", { name: "Notes" })).toBeNull());
+  expect(workspace.uninstallAgentSkill).toHaveBeenLastCalledWith(
+    { agentId: original.id, skillId: "notes", removeModified: true },
+    original.serverId,
+  );
+
+  // Offline, the list and its controls wait for a new connection.
+  await act(() => root.unmount());
+  root = createRoot(container);
+  client.clear();
+  workspace.servers = [{ ...host, role: "owner", state: "offline" }];
+  workspace.canManageAgentSkills.mockReturnValue(false);
+  await renderSheet("skills");
+  expect(screen.getByText("Reconnect to load skills.")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Uninstall Notes" })).toBeNull();
 });
 
 it("shows the agent files and lets an admin delete one, then measures again", async () => {
