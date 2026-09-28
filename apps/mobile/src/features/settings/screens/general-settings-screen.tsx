@@ -164,6 +164,7 @@ export function GeneralSettingsScreen() {
                 <Picker.Item label={t("mobile.settings.appearance.system")} value="system" />
                 <Picker.Item label={t("mobile.settings.appearance.light")} value="light" />
                 <Picker.Item label={t("mobile.settings.appearance.dark")} value="dark" />
+                <Picker.Item label={t("mobile.settings.appearance.eink")} value="eink" />
               </Picker>
             </Host>
           }

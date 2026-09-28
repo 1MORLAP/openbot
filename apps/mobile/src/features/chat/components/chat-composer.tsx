@@ -24,7 +24,6 @@ import Animated, {
   type SharedValue,
   useAnimatedStyle,
   useDerivedValue,
-  useReducedMotion,
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
@@ -32,6 +31,7 @@ import { scheduleOnRN } from "react-native-worklets";
 import { BloubAvatar } from "@/features/agents/components/bloub-avatar";
 import type { ChatBubbleMessage } from "@/features/chat/context/message-actions-context";
 import type { MobileAgent } from "@/features/workspace/model/workspace-types";
+import { useReducedMotion } from "@/shared/lib/eink";
 import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
 import { editMentionDraft, insertMention, mentionDraft, mentionQuery } from "../model/chat-mentions";

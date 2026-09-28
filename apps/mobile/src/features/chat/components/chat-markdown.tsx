@@ -14,7 +14,6 @@ import { FileText } from "lucide-react-native";
 import type { Token, Tokens } from "marked";
 import { Fragment, memo, type ReactNode, useMemo } from "react";
 import { Alert, type ColorValue, ScrollView, type TextStyle, useWindowDimensions, View } from "react-native";
-import { useReducedMotion } from "react-native-reanimated";
 import { useCSSVariable } from "uniwind";
 import { BloubAvatarThumbnail } from "@/features/agents/components/bloub-avatar";
 import { ChatLinkIcon } from "@/features/chat/components/chat-link-icon";
@@ -24,6 +23,7 @@ import {
   StreamRevealProvider,
 } from "@/features/chat/components/streaming-tail-text";
 import type { MobileAgent } from "@/features/workspace/model/workspace-types";
+import { useEinkMode, useReducedMotion, useThrottledValue } from "@/shared/lib/eink";
 import { haptics } from "@/shared/lib/haptics";
 import { currentText, useText } from "@/shared/lib/text";
 import { parseChatMarkdown } from "../model/chat-markdown-parser";
@@ -483,6 +483,8 @@ function MarkdownBlocks({
   );
 }
 
+const EINK_STREAM_INTERVAL_MS = 1500;
+
 export const ChatMarkdown = memo(function ChatMarkdown({
   body,
   color,
@@ -492,6 +494,7 @@ export const ChatMarkdown = memo(function ChatMarkdown({
   playback,
   selectable = true,
   agents = [],
+  live = false,
 }: {
   body: string;
   color: ColorValue | undefined;
@@ -501,10 +504,15 @@ export const ChatMarkdown = memo(function ChatMarkdown({
   playback?: ReplyPlayback;
   selectable?: boolean;
   agents?: readonly MobileAgent[];
+  /** The host is still streaming this body. */
+  live?: boolean;
 }) {
   const reducedMotion = useReducedMotion();
+  // E-ink repaints (and flashes) on every streamed token, so a streaming reply updates in steps.
+  const eink = useEinkMode();
+  const shownBody = useThrottledValue(body, EINK_STREAM_INTERVAL_MS, live && eink);
   const { fontScale } = useWindowDimensions();
-  const tokens = useMemo(() => parseChatMarkdown(body), [body]);
+  const tokens = useMemo(() => parseChatMarkdown(shownBody), [shownBody]);
   const reveal = useMemo(() => createReplyReveal(tokens), [tokens]);
   const visibleTokens = useReplyPlayback(reveal, playback);
   const codeColor = useThemeColor("foreground");

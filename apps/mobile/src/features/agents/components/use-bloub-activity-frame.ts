@@ -3,8 +3,9 @@ import { type AvatarMood, avatarMoodIsBusy } from "@openbot/brand/bloub-avatar-m
 import { useIsFocused } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState } from "react-native";
-import { useDerivedValue, useFrameCallback, useReducedMotion, useSharedValue } from "react-native-reanimated";
+import { useDerivedValue, useFrameCallback, useSharedValue } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
+import { useReducedMotion } from "@/shared/lib/eink";
 
 import {
   type BloubActivityFrame,

@@ -1,0 +1,111 @@
+/*
+ * E-ink theme. Electrophoretic panels show about 16 grey levels, ghost on every
+ * repaint and wash out low-contrast greys, so this theme is paper white with pure
+ * black text, solid borders, no translucency and no shadows. Status colours stay
+ * dark enough to read as black on greyscale panels and as colour on Kaleido panels.
+ *
+ * uniwind learns a theme's variables only from its @variant block, so this block
+ * declares every OpenBot token from tokens-native.css and every HeroUI variable
+ * from heroui-native's variables.css. A name missing here does not resolve.
+ */
+
+@layer theme {
+  :root {
+    @variant eink {
+      --openbot-bg-canvas: #ffffff;
+      --openbot-bg-native-canvas: #ffffff;
+      --openbot-bg-native-sidebar: #ffffff;
+      --openbot-bg-sidebar: #ffffff;
+      --openbot-bg-surface: #ffffff;
+      --openbot-bg-surface-raised: #f0f0f0;
+      --openbot-bg-control: #e6e6e6;
+      --openbot-bg-control-active: #cccccc;
+      --openbot-bg-overlay: rgba(0, 0, 0, 0.5);
+      --openbot-border: #000000;
+      --openbot-border-strong: #000000;
+      --openbot-text-primary: #000000;
+      --openbot-text-secondary: #1a1a1a;
+      --openbot-text-muted: #333333;
+      --openbot-text-dim: #555555;
+      --openbot-text-on-accent: #ffffff;
+      --openbot-text-on-light: #000000;
+      --openbot-text-on-status: #ffffff;
+      --openbot-action: #000000;
+      --openbot-action-foreground: #ffffff;
+      --openbot-accent: #000000;
+      --openbot-accent-text: #000000;
+      --openbot-logo-production: #000000;
+      --openbot-logo-eye: #ffffff;
+      --openbot-success: #1b5e20;
+      --openbot-warning: #5d4000;
+      --openbot-danger: #9a0007;
+      --openbot-success-text: #1b5e20;
+      --openbot-warning-text: #5d4000;
+      --openbot-danger-text: #9a0007;
+      --openbot-drawer-scrim: #000000;
+      --openbot-scroll-edge-overlay: rgba(255, 255, 255, 0);
+      --openbot-shadow-card: 0 0 0 transparent;
+      --openbot-shadow-overlay: 0 0 0 transparent;
+      --openbot-tracking-tight: 0px;
+      --openbot-tracking-wide: 0.02em;
+      --openbot-bg-sheet: #ffffff;
+      --openbot-bg-grouped: #ffffff;
+      --openbot-text-grouped-secondary: #333333;
+      --openbot-border-grouped: #000000;
+      --openbot-radius-grouped: 8px;
+      --openbot-file-blue: #000000;
+      --openbot-file-blue-soft: #e6e6e6;
+      --openbot-file-yellow: #000000;
+      --openbot-file-yellow-soft: #e6e6e6;
+      --openbot-file-orange: #000000;
+      --openbot-file-orange-soft: #e6e6e6;
+      --openbot-file-teal: #000000;
+      --openbot-file-teal-soft: #e6e6e6;
+      --openbot-file-green: #000000;
+      --openbot-file-green-soft: #e6e6e6;
+      --openbot-file-red: #000000;
+      --openbot-file-red-soft: #e6e6e6;
+      --openbot-file-pink: #000000;
+      --openbot-file-pink-soft: #e6e6e6;
+      --openbot-file-default: #000000;
+      --openbot-file-default-soft: #e6e6e6;
+
+      /* HeroUI Native variables. global.css aliases most of them to the tokens above. */
+      --background: #ffffff;
+      --foreground: #000000;
+      --surface: #ffffff;
+      --surface-foreground: #000000;
+      --surface-secondary: #e6e6e6;
+      --surface-secondary-foreground: #000000;
+      --surface-tertiary: #f0f0f0;
+      --surface-tertiary-foreground: #000000;
+      --overlay: #ffffff;
+      --overlay-foreground: #000000;
+      --backdrop: rgba(0, 0, 0, 0.5);
+      --muted: #333333;
+      --default: #e6e6e6;
+      --default-foreground: #000000;
+      --accent: #000000;
+      --accent-foreground: #ffffff;
+      --field-background: #ffffff;
+      --field-foreground: #000000;
+      --field-placeholder: #555555;
+      --field-border: #000000;
+      --success: #1b5e20;
+      --success-foreground: #ffffff;
+      --warning: #5d4000;
+      --warning-foreground: #ffffff;
+      --danger: #9a0007;
+      --danger-foreground: #ffffff;
+      --segment: #ffffff;
+      --segment-foreground: #000000;
+      --border: #000000;
+      --separator: #000000;
+      --focus: #000000;
+      --link: #000000;
+      --surface-shadow: 0 0 0 0 transparent inset;
+      --overlay-shadow: 0 0 0 1px #000000 inset;
+      --field-shadow: 0 0 0 0 transparent inset;
+    }
+  }
+}

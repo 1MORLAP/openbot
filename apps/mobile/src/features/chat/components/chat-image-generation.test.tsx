@@ -7,6 +7,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ChatImageGeneration, type ImageGenerationStatus, imageGenerationStatus } from "./chat-image-generation";
 
 const native = vi.hoisted(() => ({ download: vi.fn(), share: vi.fn(), canvas: vi.fn() }));
+// The e-ink theme is off in these tests; reduced motion comes from the Reanimated mock above.
+vi.mock("@/shared/lib/eink", async () => {
+  const reanimated = await import("react-native-reanimated");
+  return { useEinkMode: () => false, useReducedMotion: () => reanimated.useReducedMotion() };
+});
+
 vi.mock("@/shared/lib/haptics", () => ({
   haptics: { selection: vi.fn(async () => {}), impact: vi.fn(async () => {}), notification: vi.fn(async () => {}) },
 }));

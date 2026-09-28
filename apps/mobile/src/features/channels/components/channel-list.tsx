@@ -204,7 +204,7 @@ export const ChannelListRow = memo(function ChannelListRow({
   const content = isAndroid ? (
     <MenuView
       ref={menu}
-      colorScheme={theme}
+      colorScheme={theme === "dark" ? "dark" : "light"}
       shouldOpenOnLongPress
       actions={[
         ...sectionMenu.androidActions,

@@ -6,16 +6,10 @@ import { useThemeColor } from "heroui-native/hooks";
 import { X } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import { Platform, Pressable, useWindowDimensions, View } from "react-native";
-import Animated, {
-  Easing,
-  ReduceMotion,
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withTiming,
-} from "react-native-reanimated";
+import Animated, { Easing, ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 import { scheduleOnRN } from "react-native-worklets";
+import { useReducedMotion } from "@/shared/lib/eink";
 import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
 import type { ImageDimensions } from "../model/image-dimensions";

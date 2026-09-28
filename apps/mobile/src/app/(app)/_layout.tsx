@@ -11,6 +11,7 @@ import { MessageActionsProvider } from "@/features/chat/context/message-actions-
 import { QueuedMessagesProvider } from "@/features/chat/context/queued-messages-context";
 import { AppDrawerShell } from "@/features/servers/components/app-drawer-shell";
 import { MobileWorkspaceProvider } from "@/features/workspace/context/mobile-workspace-context";
+import { useEinkMode } from "@/shared/lib/eink";
 import { isIOS } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
 
@@ -24,6 +25,10 @@ function AuthenticatedStack() {
   const background = useThemeColor("background");
   const sheetBackground = String(useCSSVariable("--openbot-bg-sheet") ?? background);
   const [navigationGate] = useState(createChatNavigationGate);
+  // Every transition frame is a panel repaint on e-ink.
+  const eink = useEinkMode();
+  const slide = eink ? "none" : "slide_from_right";
+  const fade = eink ? "none" : "fade";
 
   return (
     <ChatNavigationGateContext value={navigationGate}>
@@ -46,13 +51,14 @@ function AuthenticatedStack() {
           headerShadowVisible: false,
           headerTransparent: isIOS,
           sheetExpandsWhenScrolledToEdge: false,
+          ...(eink ? { animation: "none" as const } : {}),
         }}
       >
-        <Stack.Screen name="connected" options={{ animation: "fade", gestureEnabled: false, title: "" }} />
+        <Stack.Screen name="connected" options={{ animation: fade, gestureEnabled: false, title: "" }} />
         <Stack.Screen
           name="chat/[agentId]"
           options={{
-            animation: "slide_from_right",
+            animation: slide,
             contentStyle: { backgroundColor: background },
             fullScreenGestureEnabled: false,
             gestureEnabled: true,
@@ -62,7 +68,7 @@ function AuthenticatedStack() {
         <Stack.Screen
           name="channel/[channelId]"
           options={{
-            animation: "slide_from_right",
+            animation: slide,
             contentStyle: { backgroundColor: background },
             fullScreenGestureEnabled: false,
             gestureEnabled: true,

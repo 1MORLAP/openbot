@@ -4,6 +4,7 @@ import { type StyleProp, useColorScheme, View, type ViewStyle } from "react-nati
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
 import { ProgressiveSheetBlur } from "@/shared/components/progressive-sheet-blur";
+import { useEinkMode } from "@/shared/lib/eink";
 import { isIOS } from "@/shared/lib/platform";
 
 interface SheetScrollEdgeEffectProps {
@@ -15,6 +16,10 @@ interface SheetScrollEdgeEffectProps {
 export function SheetScrollEdgeEffect({ style, edge = "top", surface = "canvas" }: SheetScrollEdgeEffectProps) {
   const colorScheme = useColorScheme();
   const blurTint = colorScheme === "dark" ? "dark" : "light";
+  // A blurred gradient edge is a smear of grey on e-ink; content scrolls under a plain edge.
+  const eink = useEinkMode();
+
+  if (eink) return null;
 
   if (surface === "sheet" && isIOS) return <ProgressiveSheetBlur style={style} edge={edge} />;
 

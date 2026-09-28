@@ -29,14 +29,21 @@ import {
   useRef,
   useState,
 } from "react";
-import { AccessibilityInfo, type CellRendererProps, FlatList, Pressable, View, type ViewStyle } from "react-native";
+import {
+  AccessibilityInfo,
+  type CellRendererProps,
+  FlatList,
+  Pressable,
+  useWindowDimensions,
+  View,
+  type ViewStyle,
+} from "react-native";
 import { KeyboardChatScrollView, type KeyboardChatScrollViewProps } from "react-native-keyboard-controller";
 import Animated, {
   Easing,
   FadeInDown,
   ReduceMotion,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
@@ -55,6 +62,7 @@ import { type ChatMessage, indexChatMessages, type RoutineMarkerEvent } from "@/
 import { useConnectionAppearance } from "@/features/workspace/components/use-connection-appearance";
 import type { MobileAgent } from "@/features/workspace/context/mobile-workspace-context";
 import { agentActivityMood, type MobileAgentActivity } from "@/features/workspace/model/agent-activity";
+import { useReducedMotion } from "@/shared/lib/eink";
 import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
 import type { ChatBubbleMessage } from "../context/message-actions-context";
@@ -554,6 +562,7 @@ const MessageRow = memo(function MessageRow({
             <ChatMarkdown
               agents={agents}
               body={message.body}
+              live={message.streaming}
               selectable={message.author === "user"}
               color={message.author === "user" && targetKind === "agent" ? userForeground : foreground}
               playback={playback}
@@ -629,6 +638,8 @@ function TurnFailure({ reason }: { reason: string | undefined }) {
   );
 }
 
+const MAX_CONVERSATION_WIDTH = 760;
+
 export function ChatMessageList({
   upload,
   target,
@@ -701,6 +712,9 @@ export function ChatMessageList({
   const themeForeground = String(themeForegroundColor);
   const themeMuted = String(themeMutedColor);
   const reducedMotion = useReducedMotion();
+  // Landscape and tablet screens keep a readable line length by centring the conversation.
+  const { width: windowWidth } = useWindowDimensions();
+  const horizontalPadding = Math.max(16, (windowWidth - MAX_CONVERSATION_WIDTH) / 2);
   const animateMessages = isFocused && online && appActive;
   const replyHaptics = useReplyHaptics(animateMessages && historyState === "ready" && motion.responseVisible);
   const conversationKey = JSON.stringify([target.serverId, target.kind, target.id]);
@@ -965,7 +979,7 @@ export function ChatMessageList({
             />
           )}
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: topInset + 84 }}
+          contentContainerStyle={{ paddingHorizontal: horizontalPadding, paddingTop: topInset + 84 }}
           contentInsetAdjustmentBehavior="never"
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"

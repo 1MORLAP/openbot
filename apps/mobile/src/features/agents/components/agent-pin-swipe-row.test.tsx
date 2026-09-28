@@ -26,6 +26,12 @@ const native = vi.hoisted(() => {
 
 // Replace only native event delivery and animation completion. The real gesture
 // callbacks decide ownership, thresholds, cancellation, haptics and pinning.
+// The e-ink theme is off in these tests; reduced motion comes from the Reanimated mock above.
+vi.mock("@/shared/lib/eink", async () => {
+  const reanimated = await import("react-native-reanimated");
+  return { useEinkMode: () => false, useReducedMotion: () => reanimated.useReducedMotion() };
+});
+
 vi.mock("react-native-gesture-handler", () => ({
   GestureDetector: ({ children }: PropsWithChildren) => children,
   Gesture: {

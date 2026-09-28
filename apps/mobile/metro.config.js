@@ -21,4 +21,5 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
 module.exports = withUniwindConfig(config, {
   cssEntryFile: "./global.css",
   dtsFile: "./src/uniwind-types.d.ts",
+  extraThemes: ["eink"],
 });

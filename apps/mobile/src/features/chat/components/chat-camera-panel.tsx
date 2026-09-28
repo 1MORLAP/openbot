@@ -3,7 +3,8 @@ import { Button, Typography } from "heroui-native";
 import { ChevronLeft, SwitchCamera } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
-import Animated, { cubicBezier, useReducedMotion } from "react-native-reanimated";
+import Animated, { cubicBezier } from "react-native-reanimated";
+import { useReducedMotion } from "@/shared/lib/eink";
 import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
 

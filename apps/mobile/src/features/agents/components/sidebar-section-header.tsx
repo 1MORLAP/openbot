@@ -6,8 +6,9 @@ import { useThemeColor } from "heroui-native/hooks";
 import { ChevronRight, Ellipsis } from "lucide-react-native";
 import { useRef, useState } from "react";
 import { Alert, Pressable, View } from "react-native";
-import Animated, { cubicBezier, useReducedMotion } from "react-native-reanimated";
+import Animated, { cubicBezier } from "react-native-reanimated";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import { useReducedMotion } from "@/shared/lib/eink";
 import { haptics } from "@/shared/lib/haptics";
 import { currentText, useText } from "@/shared/lib/text";
 

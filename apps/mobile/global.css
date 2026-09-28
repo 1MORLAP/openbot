@@ -5,6 +5,7 @@
 
 @import "@openbot/brand/tokens.css";
 @import "@openbot/brand/tokens-native.css";
+@import "./eink-theme.css";
 
 @theme inline {
   --color-sheet: var(--openbot-bg-sheet);

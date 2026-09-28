@@ -3,7 +3,7 @@ import { loadAppearance, saveAppearance, useAppearance } from "./appearance";
 
 // Device storage and the native theme runtime are the integration boundary.
 const native = vi.hoisted(() => {
-  const storage: { stored: string | null; fail: boolean } = { stored: null, fail: false };
+  const storage: { stored: string | null; fail: boolean; eink: boolean } = { stored: null, fail: false, eink: false };
   return { ...storage, setTheme: vi.fn() };
 });
 vi.mock("expo-secure-store", () => ({
@@ -14,9 +14,11 @@ vi.mock("expo-secure-store", () => ({
   },
 }));
 vi.mock("uniwind", () => ({ Uniwind: { setTheme: native.setTheme } }));
+vi.mock("@/shared/lib/eink-device", () => ({ isEinkDevice: () => native.eink }));
 beforeEach(() => {
   native.stored = null;
   native.fail = false;
+  native.eink = false;
   native.setTheme.mockClear();
   useAppearance.setState({ value: "system", ready: false, saving: false });
 });
@@ -40,4 +42,21 @@ it("keeps the previous appearance on storage failure and permits retry", async (
   native.fail = false;
   await saveAppearance("light");
   expect(native.stored).toBe("light");
+});
+it("keeps the e-ink theme after restart", async () => {
+  await loadAppearance();
+  await saveAppearance("eink");
+  useAppearance.setState({ value: "system", ready: false });
+  await loadAppearance();
+  expect(useAppearance.getState().value).toBe("eink");
+  expect(native.setTheme).toHaveBeenLastCalledWith("eink");
+});
+it("starts an e-ink reader in the e-ink theme until the user chooses another", async () => {
+  native.eink = true;
+  await loadAppearance();
+  expect(useAppearance.getState().value).toBe("eink");
+  await saveAppearance("light");
+  useAppearance.setState({ value: "system", ready: false });
+  await loadAppearance();
+  expect(useAppearance.getState().value).toBe("light");
 });

@@ -5,13 +5,13 @@ import {
   Easing,
   ReduceMotion,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   withDelay,
   withRepeat,
   withSequence,
   withTiming,
 } from "react-native-reanimated";
+import { useReducedMotion } from "@/shared/lib/eink";
 import { haptics } from "@/shared/lib/haptics";
 
 export type AppLogoAnimation = "none" | "blink";

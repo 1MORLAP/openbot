@@ -10,7 +10,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { StyleSheet, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
-import { useReducedMotion } from "react-native-reanimated";
+import { ReducedMotionConfig, ReduceMotion } from "react-native-reanimated";
 import { useCSSVariable, useUniwind, withUniwind } from "uniwind";
 
 import { MobileAnalyticsLifecycle } from "@/features/analytics/lifecycle";
@@ -23,6 +23,7 @@ import { loadHapticsPreference } from "@/features/settings/model/haptics";
 import { AppLoadingOverlayProvider, useAppLoadingOverlay } from "@/shared/components/app-loading-overlay";
 import { BloubAnimationProvider } from "@/shared/components/bloub-loader";
 import { SplashBackdrop } from "@/shared/components/splash-backdrop";
+import { useEinkMode, useReducedMotion } from "@/shared/lib/eink";
 import { nativeSplash } from "@/shared/lib/native-splash";
 import { isIOS } from "@/shared/lib/platform";
 import { queryClient } from "@/shared/lib/query-client";
@@ -53,6 +54,7 @@ function RootNavigator() {
 
   const container = useRef<View>(null);
   const reducedMotion = useReducedMotion();
+  const eink = useEinkMode();
   const foreground = useAppForeground();
   const [target, setTarget] = useState<SplashLogoTarget | null>(null);
   const motion = useSplashMotion({ covered, hasTarget: Boolean(target), foreground, reducedMotion });
@@ -97,19 +99,24 @@ function RootNavigator() {
                     headerBackButtonDisplayMode: "minimal",
                     headerShadowVisible: false,
                     headerTransparent: isIOS,
+                    // Every transition frame is a panel repaint on e-ink.
+                    ...(eink ? { animation: "none" as const } : {}),
                   }}
                 >
                   <Stack.Protected guard={!session}>
                     <Stack.Screen name="index" options={{ headerShown: false }} />
                     <Stack.Screen
                       name="scan-qr-code"
-                      options={{ animation: "slide_from_right", title: t("mobile.app.route.scanQrCode") }}
+                      options={{
+                        animation: eink ? "none" : "slide_from_right",
+                        title: t("mobile.app.route.scanQrCode"),
+                      }}
                     />
                   </Stack.Protected>
                   <Stack.Protected guard={Boolean(session)}>
                     <Stack.Screen
                       name="(app)"
-                      options={{ animation: "fade", gestureEnabled: false, headerShown: false }}
+                      options={{ animation: eink ? "none" : "fade", gestureEnabled: false, headerShown: false }}
                     />
                   </Stack.Protected>
                   <Stack.Screen name="incoming-link" options={{ headerShown: false }} />
@@ -143,6 +150,21 @@ export default function RootLayout() {
   const canvas = String(useCSSVariable("--openbot-bg-native-canvas"));
   // React Navigation paints its near-black dark background behind screens during transitions.
   const darkTheme = useMemo(() => ({ ...DarkTheme, colors: { ...DarkTheme.colors, background: canvas } }), [canvas]);
+  const einkTheme = useMemo(
+    () => ({
+      ...DefaultTheme,
+      colors: {
+        ...DefaultTheme.colors,
+        background: canvas,
+        card: canvas,
+        text: "#000000",
+        border: "#000000",
+        primary: "#000000",
+      },
+    }),
+    [canvas],
+  );
+  const navigationTheme = colorScheme === "dark" ? darkTheme : colorScheme === "eink" ? einkTheme : DefaultTheme;
   useEffect(() => {
     void loadAppearance().catch(() => undefined);
     void loadHapticsPreference().catch(() => undefined);
@@ -155,7 +177,8 @@ export default function RootLayout() {
       <KeyboardProvider preload={false}>
         <QueryClientProvider client={queryClient}>
           <HeroUINativeProvider>
-            <ThemeProvider value={colorScheme === "dark" ? darkTheme : DefaultTheme}>
+            <ThemeProvider value={navigationTheme}>
+              <ReducedMotionConfig mode={colorScheme === "eink" ? ReduceMotion.Always : ReduceMotion.System} />
               <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
               <BloubAnimationProvider>
                 <MobileSessionProvider>

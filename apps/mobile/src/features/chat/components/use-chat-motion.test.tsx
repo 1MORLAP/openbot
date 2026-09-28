@@ -17,6 +17,12 @@ const native = vi.hoisted(() => {
   };
 });
 
+// The e-ink theme is off in these tests; reduced motion comes from the Reanimated mock above.
+vi.mock("@/shared/lib/eink", async () => {
+  const reanimated = await import("react-native-reanimated");
+  return { useEinkMode: () => false, useReducedMotion: () => reanimated.useReducedMotion() };
+});
+
 vi.mock("react-native", () => ({
   Keyboard: {
     addListener: (_event: string, callback: () => void) => {

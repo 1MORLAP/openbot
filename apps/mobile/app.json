@@ -4,7 +4,7 @@
     "slug": "openbot",
     "platforms": ["ios", "android"],
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icons/app-icon.png",
     "scheme": "openbot",
     "userInterfaceStyle": "automatic",
@@ -21,7 +21,7 @@
       "icon": "./assets/icons/app-icon.icon"
     },
     "android": {
-      "package": "run.openbot.mobile",
+      "package": "run.openbot.eink",
       "icon": "./assets/icons/app-icon.png",
       "predictiveBackGestureEnabled": false,
       "permissions": ["android.permission.CAMERA"]
@@ -111,6 +111,7 @@
       "policy": "fingerprint"
     },
     "updates": {
+      "enabled": false,
       "url": "https://u.expo.dev/eeec730f-c8f4-42c0-a750-64df8af14940"
     }
   }
