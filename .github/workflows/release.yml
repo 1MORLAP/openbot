@@ -740,7 +740,6 @@ jobs:
     permissions:
       contents: write
     env:
-      GH_TOKEN: ${{ github.token }}
       RELEASE_TAG: ${{ needs.validate.outputs.release_tag }}
     steps:
       - name: Check out tagged source
@@ -804,8 +803,11 @@ jobs:
             release-assets/linux-arm64/SHA256SUMS-linux-arm64.txt \
             > release-assets/SHA256SUMS.txt
 
+      # Only this step gets the write token: the steps before it run dependency code.
       - name: Publish GitHub Release
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           shopt -s nullglob
           artifacts=(release-assets/macos/* release-assets/macos-x64/* release-assets/latest-mac.yml release-assets/windows/* release-assets/linux/* release-assets/linux-arm64/* release-assets/SHA256SUMS.txt)
