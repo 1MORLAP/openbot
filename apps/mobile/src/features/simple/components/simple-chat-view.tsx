@@ -495,7 +495,10 @@ export function SimpleChatView(props: ChatViewProps) {
                 paddingBottom: INPUT_PADDING,
                 fontSize: 16 * fontScale,
                 lineHeight,
-                textAlignVertical: "top",
+                // Android adds font-dependent padding above and below a line, which sits one line
+                // off-centre in a pill on some fonts; without it the line centres exactly.
+                includeFontPadding: false,
+                textAlignVertical: "center",
               }}
               accessibilityLabel={t("mobile.chat.composer.ask", { name: target.name })}
             />
