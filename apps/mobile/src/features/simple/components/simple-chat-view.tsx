@@ -340,8 +340,8 @@ export function SimpleChatView(props: ChatViewProps) {
     <GestureDetector gesture={swipeBack}>
       <View className="flex-1 bg-background">
         <View
-          className="flex-row items-center gap-3 border-b border-border px-3 pb-2"
-          style={{ paddingTop: insets.top + 2 }}
+          className="flex-row items-center gap-3 border-b border-border px-3 pb-1.5"
+          style={{ paddingTop: insets.top }}
         >
           {showBack ? (
             <IconButton bare label={t("common.back")} onPress={leaveChat}>

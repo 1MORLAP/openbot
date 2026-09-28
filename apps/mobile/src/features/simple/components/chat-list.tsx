@@ -239,15 +239,14 @@ export function SimpleChatList() {
 
   return (
     <View className="flex-1 bg-background">
-      <View className="flex-row items-center gap-1 px-4 pb-2" style={{ paddingTop: insets.top + 2 }}>
-        <View className="min-w-0 flex-1">
-          <Typography.Heading type="h3" numberOfLines={1}>
-            {t("mobile.workspace.shell.chats")}
-          </Typography.Heading>
-          <Typography.Paragraph type="body-sm" numberOfLines={1}>
-            {hasServer ? `${activeServer.name} · ${status}` : t("mobile.agent.home.chooseServer")}
-          </Typography.Paragraph>
-        </View>
+      <View className="flex-row items-center gap-1 px-4" style={{ paddingTop: insets.top }}>
+        <Typography.Paragraph weight="semibold" numberOfLines={1} className="min-w-0 flex-1">
+          {hasServer
+            ? activeServer.state === "online"
+              ? activeServer.name
+              : `${activeServer.name} · ${status}`
+            : t("mobile.agent.home.chooseServer")}
+        </Typography.Paragraph>
         <HeaderButton label={t("mobile.workspace.shell.search")} onPress={() => router.push("/search-agents")}>
           <Search color={foreground} size={22} strokeWidth={2} />
         </HeaderButton>

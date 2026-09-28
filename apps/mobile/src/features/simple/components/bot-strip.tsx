@@ -90,7 +90,7 @@ export function BotStrip() {
   return (
     <View
       className="items-center border-r border-border bg-background"
-      style={{ width: BOT_STRIP_WIDTH, paddingTop: insets.top + 4, paddingBottom: insets.bottom + 10 }}
+      style={{ width: BOT_STRIP_WIDTH, paddingTop: insets.top, paddingBottom: insets.bottom + 10 }}
     >
       <StripButton
         label={t("mobile.workspace.shell.chats")}
