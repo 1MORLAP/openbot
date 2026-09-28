@@ -361,7 +361,27 @@
       "darwin-x64": ["Sunshine.app/Contents/MacOS/Sunshine", "web-server", "streamer"],
       "win32-x64": ["sunshine.exe", "web-server.exe", "streamer.exe"]
     },
-    "releaseArtifacts": {}
+    "releaseArtifacts": {
+      "darwin-arm64": {
+        "asset": "remote-desktop-runtime-darwin-arm64.tar.gz",
+        "sha256": "8ad0a2a068eac7ecbf3dd64d547aa276be493411e2306aaefce3601b869ec51c"
+      },
+      "darwin-x64": {
+        "asset": "remote-desktop-runtime-darwin-x64.tar.gz",
+        "sha256": "207b93603b864d330e4eacda77856dbf2e54ca70e830078d5842fd32406bfa1a"
+      },
+      "win32-x64": {
+        "asset": "remote-desktop-runtime-win32-x64.tar.gz",
+        "sha256": "605047147429fa50a8330b7f550ebac08960c1925efbf743c6b5187b6ed341ea"
+      }
+    },
+    "artifactRelease": {
+      "repository": "nightly-labs/openbot",
+      "tag": "remote-desktop-runtime-29cff66db32af6debc1ff179dd754e953c6fb750b5155e17015cd7e54e66eb78",
+      "inputDigest": "29cff66db32af6debc1ff179dd754e953c6fb750b5155e17015cd7e54e66eb78",
+      "manifestAsset": "remote-desktop-runtime-manifest.json",
+      "manifestSha256": "e400f94731c16f02d163cf30a0735a9b0a9181f966f78ffff9409254c6e9ec65"
+    }
   },
   "bun": {
     "registry": "https://registry.npmjs.org",
