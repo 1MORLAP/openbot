@@ -405,6 +405,9 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     const hostId = workspace.state.host?.hostId;
     return hostId ? (readChannelSelection()[props.accountId]?.[hostId] ?? null) : null;
   };
+  // On a small screen the sidebar pane covers the chat, and so does the usage report. A covered
+  // message was not seen.
+  const canMarkRead = () => document.hasFocus() && mobilePane() === "conversation" && !usageOpen();
   const channels = createChannelsController({
     port: () => channelsPort,
     agents: workspace.profiles,
@@ -423,9 +426,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       setUsage(null);
       setMessageFocusRequest(null);
     },
-    // On a small screen the sidebar pane covers the channel, and so does the usage report. A covered
-    // message was not seen.
-    canMarkRead: () => document.hasFocus() && mobilePane() === "conversation" && !usageOpen(),
+    canMarkRead,
   });
   onCleanup(
     workspace.onHostEvent((event) => {
@@ -440,6 +441,19 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     else void channels.refresh();
   });
   const channelOpen = () => channels.state.selectedId !== null;
+  const readState = () => workspace.conversation()?.page?.readState;
+  // Keyed on the newest loaded message, not on the read state: the host can count a message that
+  // this page has not loaded yet, and marking the same message again would not clear it. Focus
+  // coming back reads the page again.
+  createEffect(
+    () =>
+      (readState()?.unreadCount ?? 0) > 0 && !creating() && !channelOpen() && canMarkRead()
+        ? (workspace.conversation()?.page?.messages.at(-1)?.id ?? null)
+        : null,
+    (unread) => {
+      if (unread) void workspace.markRead().catch(() => toast.error(t("chat.unread.markReadFailed")));
+    },
+  );
   const channelApprovals = createMemo(() => {
     const approvals: Record<string, AgentApproval | undefined> = {};
     for (const approval of workspace.state.approvals) approvals[approval.agentId] = approval;
@@ -1032,8 +1046,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
               agents={workspace.profiles()}
               modelOptions={models()}
               messages={messages()}
-              unreadCount={0}
-              firstUnreadMessageId={null}
+              unreadCount={readState()?.unreadCount ?? 0}
+              firstUnreadMessageId={readState()?.firstUnreadMessageId ?? null}
               loaded={Boolean(workspace.conversation()?.page)}
               hasOlder={workspace.conversation()?.page?.pageInfo.hasOlder}
               loadingOlder={workspace.conversation()?.loading}
@@ -1082,7 +1096,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   }));
                 return sent;
               }}
-              onMarkRead={async () => {}}
+              onMarkRead={workspace.markRead}
               onLoadOlder={() => void workspace.older()}
               onLoadLatest={workspace.refresh}
               onSearchMessages={async (query) => {
