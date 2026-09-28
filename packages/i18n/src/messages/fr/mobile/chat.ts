@@ -15,6 +15,10 @@ export const messages = {
   "mobile.chat.dictation.busy": "Une autre app utilise la reconnaissance vocale. Réessayez.",
   "mobile.chat.dictation.failed": "La reconnaissance vocale a échoué. Réessayez.",
   "mobile.chat.dictation.openSettings": "Ouvrir Réglages",
+  "mobile.chat.dictation.noServiceMessage":
+    "Cet appareil n’a pas d’app de reconnaissance vocale. Installez Reconnaissance et synthèse vocales de Google, puis réessayez.",
+  "mobile.chat.dictation.getService": "L’installer",
+  "mobile.chat.dictation.voicePrompt": "Dictez votre message",
   "mobile.chat.routine.invoked": "Routine lancée",
   "mobile.chat.routine.running": "Routine en cours",
   "mobile.chat.routine.needsAttention": "La routine requiert votre attention",

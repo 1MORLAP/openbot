@@ -14,6 +14,10 @@ export const messages = {
   "mobile.chat.dictation.busy": "別のアプリが音声認識を使用しています。もう一度お試しください。",
   "mobile.chat.dictation.failed": "音声認識に失敗しました。もう一度お試しください。",
   "mobile.chat.dictation.openSettings": "設定を開く",
+  "mobile.chat.dictation.noServiceMessage":
+    "このデバイスには音声認識アプリがありません。Google の「音声認識と音声合成」をインストールしてから、もう一度お試しください。",
+  "mobile.chat.dictation.getService": "入手",
+  "mobile.chat.dictation.voicePrompt": "メッセージを話してください",
   "mobile.chat.routine.invoked": "ルーティンを実行しました",
   "mobile.chat.routine.running": "ルーティンを実行中",
   "mobile.chat.routine.needsAttention": "ルーティンの確認が必要です",

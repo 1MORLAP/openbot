@@ -2,12 +2,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Linking } from "react-native";
 import { type SharedValue, useSharedValue, withTiming } from "react-native-reanimated";
 import { AUTOMATIC_DICTATION_LANGUAGE, useDictationLanguage } from "@/features/settings/model/dictation-language";
+import { useEinkMode } from "@/shared/lib/eink";
 import { haptics } from "@/shared/lib/haptics";
 import { phoneLanguages } from "@/shared/lib/phone-languages";
-import { isIOS } from "@/shared/lib/platform";
+import { isAndroid, isIOS } from "@/shared/lib/platform";
 import { speechRecognition } from "@/shared/lib/speech-recognition";
 import { currentText } from "@/shared/lib/text";
 import { useAppForeground } from "@/shared/lib/use-app-foreground";
+import { VoiceInput } from "../../../../modules/voice-input";
 import {
   applyDictationResult,
   type DictationNotice,
@@ -19,8 +21,11 @@ import {
   emptyDictationTranscript,
   hasRecognitionLocale,
   microphoneOffNotice,
+  noSpeechServiceNotice,
   pickRecognitionLocale,
+  pickSpeechService,
   retriesWithSystemService,
+  retriesWithVoiceDialog,
   spokenText,
 } from "../model/voice-dictation";
 
@@ -40,8 +45,13 @@ interface DictationSession {
    */
   native: boolean;
   heard: boolean;
-  /** `pending` restarts with the system service when the failed session ends. */
-  fallback: "none" | "pending" | "used";
+  /**
+   * `pending` restarts with the system service when the failed session ends, and `dialog` opens
+   * the system voice input dialog instead.
+   */
+  fallback: "none" | "pending" | "used" | "dialog";
+  /** The system voice input dialog is open; it cannot be stopped from here. */
+  dialog: boolean;
 }
 
 // The recognizer is one native session for the whole app, and every mounted
@@ -68,8 +78,32 @@ function recognitionAvailable(): boolean {
   }
 }
 
+/**
+ * Some Android devices, e-ink readers among them, install a speech service but set none as the
+ * default, so a recognizer without a package cannot start. Name one of the installed services.
+ */
+function speechServicePackage(module: Recognizer): string | undefined {
+  if (!isAndroid) return undefined;
+  try {
+    return pickSpeechService(module.getDefaultRecognitionService().packageName, module.getSpeechRecognitionServices());
+  } catch {
+    return undefined;
+  }
+}
+
+function voiceDialogAvailable(): boolean {
+  try {
+    return VoiceInput?.isAvailable() ?? false;
+  } catch {
+    return false;
+  }
+}
+
 function supportedLocales(module: Recognizer): Promise<SupportedLocales> {
-  return module.getSupportedLocales({}).catch((): SupportedLocales => ({ locales: [], installedLocales: [] }));
+  const androidRecognitionServicePackage = speechServicePackage(module);
+  return module
+    .getSupportedLocales(androidRecognitionServicePackage ? { androidRecognitionServicePackage } : {})
+    .catch((): SupportedLocales => ({ locales: [], installedLocales: [] }));
 }
 
 async function recognitionOptions(module: Recognizer, supported: Promise<SupportedLocales>) {
@@ -87,12 +121,18 @@ async function recognitionOptions(module: Recognizer, supported: Promise<Support
   // ask for on-device recognition only for an installed locale.
   const requiresOnDeviceRecognition =
     isIOS || (module.supportsOnDeviceRecognition() && hasRecognitionLocale(lang, locales.installedLocales));
-  return { lang, requiresOnDeviceRecognition };
+  const androidRecognitionServicePackage = speechServicePackage(module);
+  return {
+    lang,
+    requiresOnDeviceRecognition,
+    ...(androidRecognitionServicePackage ? { androidRecognitionServicePackage } : {}),
+  };
 }
 
 function showNotice(notice: DictationNotice): void {
   void haptics.notification("error");
   const { t } = currentText();
+  const storeUrl = notice.storeUrl;
   Alert.alert(
     t(notice.title),
     t(notice.message),
@@ -101,7 +141,15 @@ function showNotice(notice: DictationNotice): void {
           { text: t("common.cancel"), style: "cancel" },
           { text: t("mobile.chat.dictation.openSettings"), onPress: () => void Linking.openSettings() },
         ]
-      : undefined,
+      : storeUrl
+        ? [
+            { text: t("common.cancel"), style: "cancel" },
+            {
+              text: t("mobile.chat.dictation.getService"),
+              onPress: () => void Linking.openURL(storeUrl).catch(() => undefined),
+            },
+          ]
+        : undefined,
   );
 }
 
@@ -131,7 +179,12 @@ export function useVoiceDictation({
   onDraft: (text: string) => void;
 }): VoiceDictation {
   const [id] = useState(() => Symbol("dictation"));
-  const [available] = useState(recognitionAvailable);
+  const [live] = useState(recognitionAvailable);
+  // Android always shows the mic: without a live recognizer it opens the system voice input
+  // dialog, and without that it explains which app to install.
+  const available = live || isAndroid;
+  // The input level redraws the indicator ten times a second, a panel flash each time on e-ink.
+  const eink = useEinkMode();
   const [phase, setPhase] = useState<DictationPhase>("idle");
   const phaseRef = useRef<DictationPhase>("idle");
   const level = useSharedValue(0);
@@ -141,8 +194,8 @@ export function useVoiceDictation({
   // Read when the chat opens, so a mic press does not wait for the service.
   const locales = useRef<Promise<SupportedLocales> | null>(null);
   useEffect(() => {
-    if (speechRecognition && available) locales.current = supportedLocales(speechRecognition);
-  }, [available]);
+    if (speechRecognition && live) locales.current = supportedLocales(speechRecognition);
+  }, [live]);
   const onDraftRef = useRef(onDraft);
   useEffect(() => {
     onDraftRef.current = onDraft;
@@ -162,6 +215,36 @@ export function useVoiceDictation({
     update("idle");
     for (const resolve of finished.current.splice(0)) resolve();
   }, [id, level, update]);
+
+  const openVoiceDialog = useCallback(
+    (current: DictationSession) => {
+      const module = VoiceInput;
+      if (!module) {
+        settle();
+        showNotice(noSpeechServiceNotice);
+        return;
+      }
+      current.native = false;
+      current.dialog = true;
+      update("listening");
+      const chosen = useDictationLanguage.getState().value;
+      const language =
+        current.options?.lang ?? (chosen !== AUTOMATIC_DICTATION_LANGUAGE ? chosen : (phoneLanguages()[0] ?? null));
+      void module
+        .recognize(language, currentText().t("mobile.chat.dictation.voicePrompt"))
+        .then((text) => {
+          if (owner !== id || session.current !== current) return;
+          if (text?.trim()) onDraftRef.current(dictationDraft(current.base, text.trim()));
+          settle();
+        })
+        .catch(() => {
+          if (session.current !== current) return;
+          settle();
+          showNotice(dictationFailedNotice);
+        });
+    },
+    [id, settle, update],
+  );
 
   useEffect(() => {
     if (!speechRecognition) return;
@@ -194,6 +277,16 @@ export function useVoiceDictation({
           current.fallback = "pending";
           return;
         }
+        if (
+          isAndroid &&
+          !current.heard &&
+          phaseRef.current !== "stopping" &&
+          retriesWithVoiceDialog(event.error) &&
+          voiceDialogAvailable()
+        ) {
+          current.fallback = "dialog";
+          return;
+        }
         const notice = dictationNotice(event.error);
         if (notice) showNotice(notice);
       }),
@@ -204,6 +297,10 @@ export function useVoiceDictation({
           current.fallback = "used";
           current.options = { ...current.options, requiresOnDeviceRecognition: false };
           speechRecognition?.start(current.options);
+          return;
+        }
+        if (current.fallback === "dialog" && phaseRef.current !== "stopping") {
+          openVoiceDialog(current);
           return;
         }
         settle();
@@ -217,12 +314,12 @@ export function useVoiceDictation({
     return () => {
       for (const subscription of subscriptions) subscription.remove();
     };
-  }, [id, level, settle, update]);
+  }, [id, level, openVoiceDialog, settle, update]);
 
   const start = useCallback(
     (base: string) => {
       const module = speechRecognition;
-      if (!module || !available || owner || phaseRef.current !== "idle") return;
+      if (!available || owner || phaseRef.current !== "idle") return;
       owner = id;
       const current: DictationSession = {
         base,
@@ -231,9 +328,19 @@ export function useVoiceDictation({
         native: false,
         heard: false,
         fallback: "none",
+        dialog: false,
       };
       session.current = current;
       update("starting");
+      if (!module || !live) {
+        // The dialog asks for the microphone itself.
+        if (voiceDialogAvailable()) openVoiceDialog(current);
+        else {
+          settle();
+          showNotice(noSpeechServiceNotice);
+        }
+        return;
+      }
       // A cancel, or a cancel and a new press, can happen during either wait.
       // Only this session may continue.
       const stillCurrent = () => owner === id && session.current === current && phaseRef.current === "starting";
@@ -255,7 +362,7 @@ export function useVoiceDictation({
             continuous: true,
             addsPunctuation: true,
             iosTaskHint: "dictation",
-            volumeChangeEventOptions: { enabled: true, intervalMillis: 100 },
+            volumeChangeEventOptions: { enabled: !eink, intervalMillis: 100 },
           };
           current.native = true;
           module.start(current.options);
@@ -266,11 +373,14 @@ export function useVoiceDictation({
         }
       })();
     },
-    [available, id, settle, update],
+    [available, eink, id, live, openVoiceDialog, settle, update],
   );
 
   const finish = useCallback((): Promise<void> => {
-    if (owner !== id || !speechRecognition) return Promise.resolve();
+    if (owner !== id) return Promise.resolve();
+    // The system dialog owns the microphone until the user closes it; its result arrives then.
+    if (session.current?.dialog) return new Promise((resolve) => finished.current.push(resolve));
+    if (!speechRecognition) return Promise.resolve();
     if (phaseRef.current === "starting") {
       // No speech yet: the permission prompt or the recognizer is still opening.
       speechRecognition.abort();
@@ -294,7 +404,7 @@ export function useVoiceDictation({
 
   const cancel = useCallback(() => {
     const current = session.current;
-    if (owner !== id || !current) return;
+    if (owner !== id || !current || current.dialog) return;
     speechRecognition?.abort();
     onDraftRef.current(current.base);
     void haptics.selection();

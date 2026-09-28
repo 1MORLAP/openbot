@@ -11,7 +11,12 @@ const native = vi.hoisted(() => {
       for (const listener of listeners.get(name) ?? []) listener(event);
     },
     alert: vi.fn(),
+    android: false,
     phoneLanguages: ["en-US"],
+    voiceInput: {
+      isAvailable: vi.fn(() => true),
+      recognize: vi.fn<(language: string | null, prompt: string | null) => Promise<string | null>>(async () => null),
+    },
     foreground: true,
     dictationLanguage: "automatic",
     module: {
@@ -22,6 +27,8 @@ const native = vi.hoisted(() => {
         return { remove: () => set.delete(listener) };
       },
       isRecognitionAvailable: vi.fn(() => true),
+      getDefaultRecognitionService: vi.fn(() => ({ packageName: "com.google.android.as" })),
+      getSpeechRecognitionServices: vi.fn((): string[] => ["com.google.android.as"]),
       supportsOnDeviceRecognition: vi.fn(() => true),
       getSupportedLocales: vi.fn(
         async (): Promise<{ locales: string[]; installedLocales: string[] }> => ({
@@ -37,7 +44,14 @@ const native = vi.hoisted(() => {
   };
 });
 vi.mock("@/shared/lib/speech-recognition", () => ({ speechRecognition: native.module }));
-vi.mock("@/shared/lib/platform", () => ({ isIOS: false }));
+vi.mock("@/shared/lib/platform", () => ({
+  isIOS: false,
+  get isAndroid() {
+    return native.android;
+  },
+}));
+vi.mock("../../../../modules/voice-input", () => ({ VoiceInput: native.voiceInput }));
+vi.mock("@/shared/lib/eink", () => ({ useEinkMode: () => false }));
 vi.mock("@/shared/lib/phone-languages", () => ({ phoneLanguages: () => native.phoneLanguages }));
 vi.mock("@/features/settings/model/dictation-language", () => ({
   AUTOMATIC_DICTATION_LANGUAGE: "automatic",
@@ -59,6 +73,12 @@ afterEach(() => {
   native.phoneLanguages = ["en-US"];
   native.foreground = true;
   native.dictationLanguage = "automatic";
+  native.android = false;
+  native.module.isRecognitionAvailable.mockImplementation(() => true);
+  native.module.getDefaultRecognitionService.mockImplementation(() => ({ packageName: "com.google.android.as" }));
+  native.module.getSpeechRecognitionServices.mockImplementation(() => ["com.google.android.as"]);
+  native.voiceInput.isAvailable.mockImplementation(() => true);
+  native.voiceInput.recognize.mockImplementation(async () => null);
   vi.clearAllMocks();
 });
 
@@ -266,4 +286,63 @@ it("keeps the first press while Android's permission dialog puts the app in the 
   native.foreground = false;
   harness.render();
   expect(native.module.stop).toHaveBeenCalled();
+});
+
+it("opens the system voice dialog on Android when no live recognizer is installed", async () => {
+  native.android = true;
+  native.module.isRecognitionAvailable.mockImplementation(() => false);
+  native.voiceInput.recognize.mockImplementation(async () => "hello there");
+  const harness = mount("Hi");
+  expect(harness.dictation().available).toBe(true);
+  await act(async () => harness.dictation().start(harness.state.draft));
+  await vi.waitFor(() => expect(harness.dictation().phase).toBe("idle"));
+  expect(native.module.start).not.toHaveBeenCalled();
+  expect(native.voiceInput.recognize).toHaveBeenCalledWith("en-US", expect.any(String));
+  expect(harness.state.draft).toBe("Hi hello there");
+});
+
+it("keeps the draft when the voice dialog is closed without speech", async () => {
+  native.android = true;
+  native.module.isRecognitionAvailable.mockImplementation(() => false);
+  const harness = mount("Draft");
+  await act(async () => harness.dictation().start(harness.state.draft));
+  await vi.waitFor(() => expect(harness.dictation().phase).toBe("idle"));
+  expect(harness.state.draft).toBe("Draft");
+  expect(native.alert).not.toHaveBeenCalled();
+});
+
+it("switches to the voice dialog when the live recognizer fails before hearing anything", async () => {
+  native.android = true;
+  native.voiceInput.recognize.mockImplementation(async () => "from the dialog");
+  const harness = mount();
+  await listen(harness);
+  act(() => native.emit("error", { error: "client" }));
+  await act(async () => native.emit("end"));
+  await vi.waitFor(() => expect(harness.state.draft).toBe("from the dialog"));
+  expect(native.alert).not.toHaveBeenCalled();
+});
+
+it("explains which app to install when nothing on the device recognizes speech", async () => {
+  native.android = true;
+  native.module.isRecognitionAvailable.mockImplementation(() => false);
+  native.voiceInput.isAvailable.mockImplementation(() => false);
+  const harness = mount();
+  await act(async () => harness.dictation().start(""));
+  expect(native.alert).toHaveBeenCalledWith(
+    expect.any(String),
+    expect.any(String),
+    expect.arrayContaining([expect.objectContaining({ onPress: expect.any(Function) })]),
+  );
+  expect(harness.dictation().phase).toBe("idle");
+});
+
+it("names an installed speech service when the device sets no default", async () => {
+  native.android = true;
+  native.module.getDefaultRecognitionService.mockImplementation(() => ({ packageName: "" }));
+  native.module.getSpeechRecognitionServices.mockImplementation(() => ["com.example.speech", "com.google.android.tts"]);
+  const harness = mount();
+  await listen(harness);
+  expect(native.module.start).toHaveBeenLastCalledWith(
+    expect.objectContaining({ androidRecognitionServicePackage: "com.google.android.tts" }),
+  );
 });

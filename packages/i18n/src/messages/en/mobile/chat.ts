@@ -13,6 +13,10 @@ export const messages = defineMessages("mobile.chat", {
   "mobile.chat.dictation.busy": "Another app is using speech recognition. Try again.",
   "mobile.chat.dictation.failed": "Speech recognition failed. Try again.",
   "mobile.chat.dictation.openSettings": "Open Settings",
+  "mobile.chat.dictation.noServiceMessage":
+    "This device has no speech recognition app. Install Speech Recognition & Synthesis from Google, then try again.",
+  "mobile.chat.dictation.getService": "Get it",
+  "mobile.chat.dictation.voicePrompt": "Speak your message",
   "mobile.chat.routine.invoked": "Invoked routine",
   "mobile.chat.routine.running": "Running routine",
   "mobile.chat.routine.needsAttention": "Routine needs attention",

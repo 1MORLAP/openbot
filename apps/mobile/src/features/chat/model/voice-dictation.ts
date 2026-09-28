@@ -98,6 +98,40 @@ export interface DictationNotice {
   message: MobileTextKey;
   /** The user can only change this permission in the device settings. */
   openSettings?: boolean;
+  /** A store page for the missing app that would make dictation work. */
+  storeUrl?: string;
+}
+
+/** No live recognizer and no voice input dialog: Google's speech service provides both. */
+export const noSpeechServiceNotice: DictationNotice = {
+  title: "mobile.chat.dictation.unavailable",
+  message: "mobile.chat.dictation.noServiceMessage",
+  storeUrl: "market://details?id=com.google.android.tts",
+};
+
+/**
+ * The speech services worth binding to, best first, when the device sets no default. Google's
+ * on-device service works offline; the others need the network.
+ */
+const PREFERRED_SPEECH_SERVICES = [
+  "com.google.android.as",
+  "com.google.android.tts",
+  "com.google.android.googlequicksearchbox",
+];
+
+/** Undefined keeps the device's default service. */
+export function pickSpeechService(defaultService: string, services: readonly string[]): string | undefined {
+  if (defaultService || services.length === 0) return undefined;
+  return PREFERRED_SPEECH_SERVICES.find((service) => services.includes(service)) ?? services[0];
+}
+
+/**
+ * A live recognizer that fails before it hears anything can still leave the system voice input
+ * dialog working, for example when its service only runs as an activity. Errors that come from
+ * the user, the microphone permission or the network would fail the dialog the same way.
+ */
+export function retriesWithVoiceDialog(code: ExpoSpeechRecognitionErrorCode): boolean {
+  return ["service-not-allowed", "client", "unknown", "language-not-supported", "audio-capture"].includes(code);
 }
 
 export const microphoneOffNotice: DictationNotice = {
