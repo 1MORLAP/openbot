@@ -2,6 +2,7 @@ import { Input, TextArea, TextField, Typography } from "heroui-native";
 import { View } from "react-native";
 
 import type { SheetFormFieldProps } from "@/shared/components/sheet-form-field.types";
+import { useEinkMode } from "@/shared/lib/eink";
 
 export function SheetFormField({
   hint,
@@ -14,6 +15,8 @@ export function SheetFormField({
   ...inputProps
 }: SheetFormFieldProps) {
   const Control = multiline ? TextArea : Input;
+  // A field is a tinted box, and e-ink has no tints to tell it from the page: it gets an outline.
+  const eink = useEinkMode();
   return (
     <TextField isRequired={isRequired}>
       {!hideLabel && (
@@ -29,7 +32,7 @@ export function SheetFormField({
         <View className="min-w-0 flex-1">
           <Control
             accessibilityLabel={label}
-            className={`rounded-2xl bg-grouped px-4 font-sans text-body ${multiline ? "min-h-28" : "min-h-12"} ${trailing ? "border-0 bg-transparent shadow-none" : appearance === "soft" ? "border-0 shadow-none" : ""}`}
+            className={`rounded-2xl bg-grouped px-4 font-sans text-body ${multiline ? "min-h-28" : "min-h-12"} ${trailing ? "border-0 bg-transparent shadow-none" : eink ? "border-2 border-border shadow-none android:border-2 android:border-border" : appearance === "soft" ? "border-0 shadow-none" : ""}`}
             multiline={multiline}
             variant="primary"
             {...inputProps}

@@ -1,8 +1,9 @@
 import { HeaderHeightContext, HeaderShownContext } from "expo-router/react-navigation";
-import { type PropsWithChildren, type ReactNode, useContext } from "react";
+import { type PropsWithChildren, type ReactNode, useContext, useState } from "react";
 import { type ScrollViewProps, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { withUniwind } from "uniwind";
+import { type SheetAction, SheetActionBar, SheetActionContext } from "@/shared/components/sheet-action-bar";
 import { SheetScrollEdgeEffect } from "@/shared/components/sheet-scroll-edge-effect";
 import { isIOS } from "@/shared/lib/platform";
 
@@ -36,47 +37,51 @@ export function SheetScrollView({
   const headerShown = useContext(HeaderShownContext);
   const nativeHeader = isIOS && headerShown && !header;
   const showCustomEdge = scrollEdgeEffect && !nativeHeader;
+  const [action, setAction] = useState<SheetAction | null>(null);
 
   return (
-    <View style={{ flex: 1 }}>
-      <StyledKeyboardAwareScrollView
-        className={className}
-        bottomOffset={16}
-        disableScrollOnKeyboardHide
-        mode="insets"
-        automaticallyAdjustKeyboardInsets={false}
-        style={{ flex: 1 }}
-        alwaysBounceVertical={false}
-        overScrollMode="auto"
-        contentInsetAdjustmentBehavior={
-          nativeHeader ? (headerOverlaysContent ? "automatic" : "never") : contentInsetAdjustmentBehavior
-        }
-        keyboardDismissMode={keyboardDismissMode}
-        keyboardShouldPersistTaps={keyboardShouldPersistTaps}
-        showsVerticalScrollIndicator={showsVerticalScrollIndicator}
-        stickyHeaderIndices={showCustomEdge ? [0] : undefined}
-      >
-        <View className="z-10" style={header ? undefined : { height: 1, marginBottom: -1 }}>
-          {showCustomEdge ? (
-            <SheetScrollEdgeEffect
-              surface="sheet"
-              style={
-                header
-                  ? { bottom: -24, left: 0, position: "absolute", right: 0, top: 0 }
-                  : { height: 34, left: 0, position: "absolute", right: 0, top: 0 }
-              }
-            />
-          ) : null}
-          {header}
-        </View>
-        <View className={contentContainerClassName}>{children}</View>
-      </StyledKeyboardAwareScrollView>
-      {nativeHeader && headerOverlaysContent ? (
-        <SheetScrollEdgeEffect
-          surface="sheet"
-          style={{ position: "absolute", top: 0, left: 0, right: 0, height: headerHeight + 48 }}
-        />
-      ) : null}
-    </View>
+    <SheetActionContext.Provider value={setAction}>
+      <View style={{ flex: 1 }}>
+        {action ? <SheetActionBar action={action} topInset={!headerShown} /> : null}
+        <StyledKeyboardAwareScrollView
+          className={className}
+          bottomOffset={16}
+          disableScrollOnKeyboardHide
+          mode="insets"
+          automaticallyAdjustKeyboardInsets={false}
+          style={{ flex: 1 }}
+          alwaysBounceVertical={false}
+          overScrollMode="auto"
+          contentInsetAdjustmentBehavior={
+            nativeHeader ? (headerOverlaysContent ? "automatic" : "never") : contentInsetAdjustmentBehavior
+          }
+          keyboardDismissMode={keyboardDismissMode}
+          keyboardShouldPersistTaps={keyboardShouldPersistTaps}
+          showsVerticalScrollIndicator={showsVerticalScrollIndicator}
+          stickyHeaderIndices={showCustomEdge ? [0] : undefined}
+        >
+          <View className="z-10" style={header ? undefined : { height: 1, marginBottom: -1 }}>
+            {showCustomEdge ? (
+              <SheetScrollEdgeEffect
+                surface="sheet"
+                style={
+                  header
+                    ? { bottom: -24, left: 0, position: "absolute", right: 0, top: 0 }
+                    : { height: 34, left: 0, position: "absolute", right: 0, top: 0 }
+                }
+              />
+            ) : null}
+            {header}
+          </View>
+          <View className={contentContainerClassName}>{children}</View>
+        </StyledKeyboardAwareScrollView>
+        {nativeHeader && headerOverlaysContent ? (
+          <SheetScrollEdgeEffect
+            surface="sheet"
+            style={{ position: "absolute", top: 0, left: 0, right: 0, height: headerHeight + 48 }}
+          />
+        ) : null}
+      </View>
+    </SheetActionContext.Provider>
   );
 }
