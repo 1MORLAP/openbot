@@ -37,6 +37,9 @@ All notable changes to OpenBot will be documented here. The project follows
 
 ### Fixed
 
+- Stop "Provider error" messages for Antigravity info and warning log lines, such as "Checkpoint
+  summary was too long". Before, one message showed at each step of a long conversation. These
+  lines now go to the log. Antigravity error lines still show.
 - When Codex ignores an unknown setting in its configuration, show one warning that names each
   setting. Before, a "Provider error" showed only "Codex is ignoring 1 unrecognized configuration
   setting", with no setting name, and it came back after each reconnect. Codex continues to work.
