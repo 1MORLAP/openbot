@@ -9,6 +9,8 @@ import { FlatList, Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { BloubAvatarThumbnail } from "@/features/agents/components/bloub-avatar";
+import { mobileUserName } from "@/features/auth/api/mobile-user-name";
+import { useMobileSession } from "@/features/auth/context/mobile-session-context";
 import { useChannels } from "@/features/channels/components/use-channels";
 import { markdownPreviewText } from "@/features/chat/model/chat-markdown-parser";
 import { useAppDrawer } from "@/features/servers/components/app-drawer-shell";
@@ -16,6 +18,7 @@ import { useOpenChat } from "@/features/workspace/components/details-pane";
 import { useAgentUnread } from "@/features/workspace/components/use-live-workspace";
 import { type MobileAgent, useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import { mobileSidebarItems } from "@/features/workspace/model/sidebar-layout";
+import { ProfileAvatar } from "@/shared/components/profile-avatar";
 import { formatUpdatedAt } from "@/shared/lib/format-updated-at";
 import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
@@ -144,21 +147,30 @@ function HeaderButton({ label, onPress, children }: { label: string; onPress: ()
   );
 }
 
-function FooterButton({ label, onPress, children }: { label: string; onPress: () => void; children: ReactNode }) {
+/** The signed-in person: their picture (or initials) and name, opening the profile. */
+function AccountButton() {
+  const { t } = useText();
+  const { session } = useMobileSession();
+  const name = session ? mobileUserName(session.user) : t("mobile.settings.home.profile");
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={name}
       onPress={() => {
         void haptics.selection();
-        onPress();
+        router.push("/settings/profile");
       }}
-      className="min-h-11 flex-1 flex-row items-center justify-center gap-2 rounded-full border border-border px-3"
+      className="min-w-0 flex-1 flex-row items-center gap-2.5 rounded-full py-1 pr-2"
       style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
     >
-      {children}
-      <Typography.Paragraph weight="semibold" numberOfLines={1}>
-        {label}
+      <ProfileAvatar
+        neutral
+        name={name}
+        imageUrl={session?.user.avatarUrl ? new URL(session.user.avatarUrl, session.apiUrl).toString() : null}
+        size={40}
+      />
+      <Typography.Paragraph weight="semibold" numberOfLines={1} className="min-w-0 flex-1">
+        {name}
       </Typography.Paragraph>
     </Pressable>
   );
@@ -166,8 +178,8 @@ function FooterButton({ label, onPress, children }: { label: string; onPress: ()
 
 /**
  * The chat list of the plain interface: every bot and channel of the selected server, grouped by
- * the desktop's sidebar sections, with the open chat outlined. Search and New sit at the top,
- * Servers and Settings at the bottom.
+ * the desktop's sidebar sections, with the open chat outlined. Search and New sit at the top; the
+ * signed-in account, Servers and Settings at the bottom.
  */
 export function SimpleChatList() {
   const { t } = useText();
@@ -302,13 +314,17 @@ export function SimpleChatList() {
           </View>
         }
       />
-      <View className="flex-row gap-2 border-t border-border px-3 pt-2.5" style={{ paddingBottom: insets.bottom + 10 }}>
-        <FooterButton label={t("mobile.workspace.shell.servers")} onPress={openDrawer}>
+      <View
+        className="flex-row items-center gap-2 border-t border-border px-3 pt-2.5"
+        style={{ paddingBottom: insets.bottom + 10 }}
+      >
+        <AccountButton />
+        <HeaderButton label={t("mobile.workspace.shell.servers")} onPress={openDrawer}>
           <Layers3 color={foreground} size={20} strokeWidth={2} />
-        </FooterButton>
-        <FooterButton label={t("mobile.workspace.shell.settings")} onPress={() => router.push("/settings")}>
+        </HeaderButton>
+        <HeaderButton label={t("mobile.workspace.shell.settings")} onPress={() => router.push("/settings")}>
           <Settings color={foreground} size={20} strokeWidth={2} />
-        </FooterButton>
+        </HeaderButton>
       </View>
     </View>
   );

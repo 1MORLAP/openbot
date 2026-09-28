@@ -28,6 +28,10 @@ type Translate = ReturnType<typeof useText>["t"];
 
 /** Changing the zoom restarts the app, so it is read once. */
 const APP_ZOOM = DisplayZoom?.getZoom() ?? 1;
+const BUTTON_SIZE = 44;
+const INPUT_PADDING = 10;
+/** The input's 2 pt border on each side. */
+const INPUT_BORDER = 4;
 
 function IconButton({
   label,
@@ -54,7 +58,11 @@ function IconButton({
         onPress();
       }}
       className={`items-center justify-center rounded-full border-2 ${filled ? "border-foreground bg-foreground" : "border-border bg-background"}`}
-      style={({ pressed }) => ({ width: 44, height: 44, opacity: disabled ? 0.4 : pressed ? 0.6 : 1 })}
+      style={({ pressed }) => ({
+        width: BUTTON_SIZE,
+        height: BUTTON_SIZE,
+        opacity: disabled ? 0.4 : pressed ? 0.6 : 1,
+      })}
     >
       {children}
     </Pressable>
@@ -212,6 +220,8 @@ export function SimpleChatView(props: ChatViewProps) {
   const colors = { foreground: String(foreground), background: String(background) };
   // The composer is a native input outside the type scale, so it follows the font size itself.
   const fontScale = useFontScale();
+  const lineHeight = Math.round(24 * fontScale);
+  const inputHeight = Math.max(BUTTON_SIZE, lineHeight + INPUT_PADDING * 2 + INPUT_BORDER);
   const { mode, detailsFit, detailsOpen } = usePaneLayout();
   // Back returns to the chat list unless the list is already beside the chat.
   const showBack = mode !== "wide";
@@ -459,16 +469,6 @@ export function SimpleChatView(props: ChatViewProps) {
 
         {readOnly ? null : (
           <View className="flex-row items-end gap-2 px-3 pt-2" style={{ paddingBottom: insets.bottom + 12 }}>
-            {dictation.available ? (
-              <IconButton
-                label={listening ? t("mobile.chat.composer.stopDictation") : t("mobile.chat.composer.dictate")}
-                onPress={() => (listening ? void dictation.finish() : dictation.start(draft))}
-                disabled={!canSend}
-                filled={listening}
-              >
-                <Mic color={listening ? colors.background : colors.foreground} size={22} strokeWidth={2} />
-              </IconButton>
-            ) : null}
             <TextInput
               value={draft}
               onChangeText={setDraft}
@@ -482,25 +482,40 @@ export function SimpleChatView(props: ChatViewProps) {
                     : t("mobile.chat.composer.ask", { name: target.name })
               }
               placeholderTextColor={colors.foreground}
-              className="min-w-0 flex-1 rounded-3xl border-2 border-border px-5 py-3 text-body text-foreground"
+              className="min-w-0 flex-1 border-2 border-border px-5 text-body text-foreground"
               style={{
-                minHeight: 48,
+                minHeight: inputHeight,
                 maxHeight: 220,
-                borderRadius: 24,
+                borderRadius: inputHeight / 2,
+                paddingTop: INPUT_PADDING,
+                paddingBottom: INPUT_PADDING,
                 fontSize: 16 * fontScale,
-                lineHeight: 24 * fontScale,
+                lineHeight,
                 textAlignVertical: "top",
               }}
               accessibilityLabel={t("mobile.chat.composer.ask", { name: target.name })}
             />
-            <IconButton
-              label={t("mobile.chat.composer.send")}
-              onPress={() => void submit()}
-              disabled={!canSend || sending || (!draft.trim() && !listening)}
-              filled
-            >
-              <Send color={colors.background} size={20} strokeWidth={2} />
-            </IconButton>
+            {/* The buttons sit centred on the input's last line, so a one-line input lines up exactly. */}
+            <View className="flex-row gap-2" style={{ marginBottom: (inputHeight - BUTTON_SIZE) / 2 }}>
+              {dictation.available ? (
+                <IconButton
+                  label={listening ? t("mobile.chat.composer.stopDictation") : t("mobile.chat.composer.dictate")}
+                  onPress={() => (listening ? void dictation.finish() : dictation.start(draft))}
+                  disabled={!canSend}
+                  filled={listening}
+                >
+                  <Mic color={listening ? colors.background : colors.foreground} size={22} strokeWidth={2} />
+                </IconButton>
+              ) : null}
+              <IconButton
+                label={t("mobile.chat.composer.send")}
+                onPress={() => void submit()}
+                disabled={!canSend || sending || (!draft.trim() && !listening)}
+                filled
+              >
+                <Send color={colors.background} size={20} strokeWidth={2} />
+              </IconButton>
+            </View>
           </View>
         )}
         <Animated.View style={keyboardSpace} />
