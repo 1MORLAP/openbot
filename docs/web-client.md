@@ -41,11 +41,13 @@ mock. The separate web preview implements the browser runtime with that same moc
 
 ## Behavior and limits
 
-- `/api/browser/*` exposes only email start/verify, session read/logout, host list, session
-  start/ticket/end, invitation preview/accept and email, host member and invite administration, and
-  the account's display name, avatar, and session list/revoke (`v1/me/profile`, `v1/me/avatar`,
-  `v1/me/sessions`). It is not a general account or host proxy. Every write needs the same origin
-  and `X-OpenBot-Browser: 1`; all send JSON except the avatar upload, which sends the image bytes.
+- `/api/browser/*` exposes only email start/verify, session read/logout, host list, host logo read,
+  session start/ticket/end, invitation preview/accept and email, host member and invite
+  administration, and the account's display name, avatar, and session list/revoke
+  (`v1/me/profile`, `v1/me/avatar`, `v1/me/sessions`). It is not a general account or host proxy.
+  Every write needs the same origin and `X-OpenBot-Browser: 1`; all send JSON except the avatar
+  upload, which sends the image bytes. A host logo is given to a member of that host, for its
+  current `logoKey` only.
 - The account dock uses the single-row layout on every browser. Its menu has usage, Profile,
   Settings (the connected host's settings), Marketplace, Send feedback, Message, and Sign out.
   Profile opens the desktop Settings > Profile content in the right panel of the agent on screen;
@@ -58,6 +60,16 @@ mock. The separate web preview implements the browser runtime with that same moc
   goes to its own origin. Other services are refused. Host fingerprints are checked before use.
 - One tab can connect to a given host with an account. Other accounts and hosts have separate
   locks. A second tab gets an explicit message instead of replacing the first tab's peer.
+- As on mobile, the server rail shows the real state of every host. Each host that no tab has open
+  gets a status connection (connect and compatibility read, no events) in one tab, which holds that
+  host's lock. The other tabs learn its state on a `BroadcastChannel`. A tab that opens the host
+  asks for it on the channel: the status connection ends its session, then gives up the lock, and
+  that tab waits 30 seconds before it asks for the lock again. Only a tab that holds the lock of the
+  host it has open reports that host's state. A hidden tab keeps retrying, unlike mobile, because it
+  holds the lock and no other tab can take its place. Each status connection uses one Signal socket,
+  and the host shows the user as present.
+- The rail order is kept in this browser, per account. The server menu has Usage and Settings.
+  Mute and notification level are desktop only, because they control desktop notifications.
 - Capability checks hide unavailable browser-view and creation-model controls. Hosts without
   pagination use their full conversation endpoint. Unsupported media and EML uploads are refused
   before transfer. Host authorization remains the final decision for every action.

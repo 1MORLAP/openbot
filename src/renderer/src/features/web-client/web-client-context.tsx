@@ -21,17 +21,19 @@ import type {
 import type { RemoteTeamHost } from "@openbot/team-client/remote-directory";
 import { reconcilePendingRequests } from "@openbot/team-client/runtime-attention";
 import { currentText } from "@openbot/ui/text";
-import { createMemo, createStore, onSettled } from "solid-js";
+import { createEffect, createMemo, createSignal, createStore, onSettled } from "solid-js";
 import { toAgentProfile } from "../../app-message-projection";
 import { mergeConversationPage } from "../conversation/conversation-merge";
 import { createSidebarPreferences } from "../sidebar/sidebar-preferences";
 import { defaultSidebarLayout } from "../sidebar/sidebar-sections";
+import type { WebHostState } from "./web-host-lock";
 import {
   createWebWorkspaceRuntime,
   WebHostIncompatibleError,
   type WebRuntimeEvents,
   type WebWorkspaceRuntime,
 } from "./web-runtime";
+import { orderWebHosts, readWebServerOrder, writeWebServerOrder } from "./web-server-order";
 
 interface WebConversation {
   page: ConversationPage | null;
@@ -61,6 +63,8 @@ interface WebWorkspaceState {
   presence: TeamPresenceSnapshot | null;
   capabilities: string[];
   status: "connecting" | "online" | "offline";
+  /** The state of each host that this tab has not opened, from its status connection. */
+  hostStates: Record<string, WebHostState>;
   /** The last connection found that the host speaks no protocol this build speaks. */
   incompatibility: {
     hostId: string;
@@ -119,6 +123,7 @@ export function createWebWorkspace(
     presence: null,
     capabilities: [],
     status: "offline",
+    hostStates: {},
     incompatibility: null,
     hostsLoaded: false,
     hostsLoading: false,
@@ -153,6 +158,13 @@ export function createWebWorkspace(
     props.accountId,
     {
       accountChanged: props.onSessionCheck,
+      hostState(id, hostState) {
+        if (!disposed)
+          setState((draft) => {
+            draft.hostStates[id] = hostState;
+          });
+      },
+      hostSessionRevoked: () => void retryHosts(),
       connection(update) {
         if (disposed || update.hostId !== hostId) return;
         setState((draft) => {
@@ -331,6 +343,15 @@ export function createWebWorkspace(
   const preferences = createSidebarPreferences({
     scope: () => (state.host ? `${props.accountId}:${state.host.hostId}` : ""),
   });
+  // The other tabs show the opened host with the state this tab has for it.
+  createEffect(
+    () => ({ id: state.host?.hostId, status: state.status }),
+    ({ id, status }) => {
+      if (id) runtime.hosts?.reportSelected(id, status);
+    },
+  );
+  const [serverOrder, setServerOrder] = createSignal(readWebServerOrder(props.accountId));
+  const orderedHosts = createMemo(() => orderWebHosts(state.hosts, serverOrder()));
   const profiles = createMemo(() => state.agents.map(toAgentProfile));
   const selected = createMemo(() => profiles().find((agent) => agent.id === state.selectedId));
   const conversation = createMemo(() => (state.selectedId ? state.conversations[state.selectedId] : undefined));
@@ -435,6 +456,8 @@ export function createWebWorkspace(
             draft.status = "offline";
             draft.error = currentText().t("webClient.error.accessEnded");
           });
+          // First, so the host that left does not get a status connection when it stops being open.
+          runtime.hosts?.setHosts(hosts);
           await runtime.disconnect().catch(() => undefined);
         }
         const connected = hosts.find((host) => host.hostId === hostId);
@@ -448,7 +471,10 @@ export function createWebWorkspace(
           draft.hostsLoaded = true;
           draft.hostsError = null;
         });
-        if (!hostId && hosts[0]) await connect(hosts[0]);
+        const first = orderWebHosts(hosts, serverOrder())[0];
+        if (!hostId && first) await connect(first);
+        // After the opened host, so it takes its Signal connection before the status connections.
+        if (!disposed) runtime.hosts?.setHosts(hosts);
       } catch (error) {
         if (!disposed) {
           const message = error instanceof Error ? error.message : currentText().t("webClient.error.hostsFailed");
@@ -817,6 +843,7 @@ export function createWebWorkspace(
   onSettled(() => {
     void refreshHosts().catch(report);
     const focus = () => {
+      runtime.hosts?.refresh();
       void props
         .onSessionCheck()
         .then(() => refreshHosts())
@@ -839,6 +866,11 @@ export function createWebWorkspace(
     conversation,
     runtime,
     preferences,
+    orderedHosts,
+    reorderHosts(hostIds: string[]) {
+      setServerOrder(hostIds);
+      writeWebServerOrder(props.accountId, hostIds);
+    },
     /** Every event of the connected host. Returns the unsubscribe function. */
     onHostEvent(listener: (event: AgentEvent | TeamRealtimeEvent) => void) {
       hostEventListeners.add(listener);

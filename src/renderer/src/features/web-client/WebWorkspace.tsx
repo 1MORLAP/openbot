@@ -8,6 +8,7 @@ import {
   type AppInfo,
   type BrowserTakeoverRequest,
   CHANNEL_CHATS_CAPABILITY,
+  type ServerConnectionState,
   type ServerSummary,
 } from "@openbot/contracts/ipc";
 import { readHostAnalytics } from "@openbot/team-client";
@@ -261,8 +262,16 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
         Boolean(current.providers?.some((item) => item.state === "available" && item.connectionState !== "connecting")))
     );
   });
+  /** The opened host has its own connection. Another host shows its status connection, as on mobile. */
+  function hostState(hostId: string): ServerConnectionState {
+    if (hostId === workspace.state.host?.hostId) return workspace.state.status;
+    const state = workspace.state.hostStates[hostId];
+    // Without status connections (no BroadcastChannel), nothing will report this host.
+    if (!workspace.runtime.hosts) return "offline";
+    return !state || state === "unknown" ? "connecting" : state;
+  }
   const servers = createMemo<ServerSummary[]>(() =>
-    workspace.state.hosts.map((host) => {
+    workspace.orderedHosts().map((host) => {
       const active = host.hostId === workspace.state.host?.hostId;
       const incompatibility =
         active && workspace.state.incompatibility?.hostId === host.hostId ? workspace.state.incompatibility : null;
@@ -272,9 +281,11 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
         kind: "remote",
         role: host.role,
         apiUrl: null,
-        logoUrl: null,
+        logoUrl: host.logoKey
+          ? `/api/browser/v2/remote/hosts/${encodeURIComponent(host.hostId)}/logo?v=${encodeURIComponent(host.logoKey)}`
+          : null,
         active,
-        state: incompatibility ? "incompatible" : active ? workspace.state.status : "offline",
+        state: incompatibility ? "incompatible" : hostState(host.hostId),
         notificationsMuted: false,
         notificationsMutedUntil: null,
         notificationLevel: "all",
@@ -741,7 +752,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 <ServerRail
                   servers={servers()}
                   onSelect={selectServer}
-                  onReorder={() => {}}
+                  onReorder={workspace.reorderHosts}
                   onAdd={() => setJoinOpen(true)}
                   onOpenSettings={(id, trigger) => void openServerSettings(id, trigger)}
                   onOpenUsage={(id, trigger) => void openUsage(id, trigger)}
