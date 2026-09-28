@@ -39,6 +39,8 @@ interface SplashBackdropProps {
 // Keep the splash motif behind the guidance without competing with readable text.
 export function SplashWallpaper() {
   const { theme } = useUniwind();
+  // Faint grey artwork is only dither noise on an e-paper panel.
+  if (theme === "eink") return null;
   return (
     <Image
       accessible={false}
