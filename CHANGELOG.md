@@ -34,6 +34,9 @@ All notable changes to OpenBot will be documented here. The project follows
 
 ### Fixed
 
+- When Codex ignores an unknown setting in its configuration, show one warning that names each
+  setting. Before, a "Provider error" showed only "Codex is ignoring 1 unrecognized configuration
+  setting", with no setting name, and it came back after each reconnect. Codex continues to work.
 - Create one routine when you ask an agent to make a new agent with a schedule. Before, both agents
   could save the same routine. An agent can no longer add a routine with the name of an existing
   one; it changes that routine instead.
