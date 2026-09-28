@@ -10,11 +10,7 @@ import { createRemoteDesktopSourceManifest, loadNativeRuntimeLock } from "./nati
 const platform = process.platform === "darwin" ? "darwin" : process.platform === "win32" ? "win32" : null;
 if (!platform) throw new Error("The remote desktop runtime supports macOS and Windows only.");
 const architecture = process.arch === "arm64" ? "arm64" : process.arch === "x64" ? "x64" : null;
-if (
-  !architecture ||
-  (platform === "darwin" && architecture !== "arm64") ||
-  (platform === "win32" && architecture !== "x64")
-) {
+if (!architecture || (platform === "win32" && architecture !== "x64")) {
   throw new Error(`Unsupported remote desktop target: ${process.platform}-${process.arch}.`);
 }
 const tarExecutable =
