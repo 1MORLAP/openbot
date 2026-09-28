@@ -37,7 +37,6 @@ export const messages = defineMessages("mobile.workspace", {
   "mobile.workspace.split.members": "Members",
   "mobile.workspace.shell.chats": "Chats",
   "mobile.workspace.shell.search": "Search",
-  "mobile.workspace.shell.new": "New",
   "mobile.workspace.shell.servers": "Servers",
   "mobile.workspace.shell.settings": "Settings",
   "mobile.workspace.shell.openChat": "Open chat with {name}",

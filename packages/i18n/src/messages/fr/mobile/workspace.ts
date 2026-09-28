@@ -41,7 +41,6 @@ export const messages = {
   "mobile.workspace.split.members": "Membres",
   "mobile.workspace.shell.chats": "Discussions",
   "mobile.workspace.shell.search": "Rechercher",
-  "mobile.workspace.shell.new": "Nouveau",
   "mobile.workspace.shell.servers": "Serveurs",
   "mobile.workspace.shell.settings": "Réglages",
   "mobile.workspace.shell.openChat": "Ouvrir la discussion avec {name}",

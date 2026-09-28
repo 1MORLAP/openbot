@@ -4,11 +4,13 @@ import { create } from "zustand";
 
 import { useEinkMode } from "@/shared/lib/eink";
 
-/** Width, in dp, from which the chat list can stay beside the open chat. */
-const SPLIT_MIN_WIDTH = 600;
-/** The navigation rail's width. */
-const RAIL_WIDTH = 96;
-/** The chat never gets narrower than this; a side pane that would squeeze it closes instead. */
+/** From this width the chat list stays beside the chat. */
+const WIDE_MIN_WIDTH = 900;
+/** From this width a strip of bot pictures stays beside the chat; below it one screen shows at a time. */
+const COMPACT_MIN_WIDTH = 600;
+/** The bot strip's width in the compact layout. */
+export const BOT_STRIP_WIDTH = 76;
+/** The chat never gets narrower than this; details that would squeeze it open as a page instead. */
 const CHAT_MIN_WIDTH = 360;
 
 /**
@@ -17,53 +19,52 @@ const CHAT_MIN_WIDTH = 360;
  */
 export const ShellWidthContext = createContext<number | null>(null);
 
+/**
+ * `wide`: chat list | chat, as on a landscape tablet. `compact`: bot strip | chat, the list is the
+ * home screen and Back or a swipe returns to it. `phone`: one screen at a time.
+ */
+type ShellMode = "wide" | "compact" | "phone";
+
 interface PaneLayout {
-  /** Tablet shell: navigation rail, and the chat list beside the chat when it is open. */
+  mode: ShellMode;
+  /** More than one pane: the chat keeps a neighbour and opening another chat replaces it. */
   split: boolean;
   listWidth: number;
   detailsWidth: number;
-  listOpen: boolean;
+  /** Details can open beside the chat without squeezing it below its minimum width. */
+  detailsFit: boolean;
   detailsOpen: boolean;
 }
 
-// The chat list starts open and details closed. `last` is the pane opened most recently, which
-// stays when both side panes do not fit beside the chat.
-const usePaneChoice = create<{ list: boolean; details: boolean; last: "list" | "details" }>(() => ({
-  list: true,
-  details: false,
-  last: "list",
-}));
+const useDetailsChoice = create<{ open: boolean }>(() => ({ open: false }));
 
 export function usePaneLayout(): PaneLayout {
   const window = useWindowDimensions();
   const width = useContext(ShellWidthContext) ?? window.width;
-  const choice = usePaneChoice();
-  const split = width >= SPLIT_MIN_WIDTH;
-  const listWidth = Math.round(Math.min(360, Math.max(260, width * 0.32)));
+  const open = useDetailsChoice((state) => state.open);
+  const mode: ShellMode = width >= WIDE_MIN_WIDTH ? "wide" : width >= COMPACT_MIN_WIDTH ? "compact" : "phone";
+  const listWidth = Math.round(Math.min(380, Math.max(300, width * 0.32)));
   const detailsWidth = Math.round(Math.min(340, Math.max(240, width * 0.28)));
-  const bothFit = width - RAIL_WIDTH - listWidth - detailsWidth >= CHAT_MIN_WIDTH;
-  const both = choice.list && choice.details;
+  const beside = mode === "wide" ? listWidth : mode === "compact" ? BOT_STRIP_WIDTH : width;
+  const detailsFit = mode !== "phone" && width - beside - detailsWidth >= CHAT_MIN_WIDTH;
   return {
-    split,
+    mode,
+    split: mode !== "phone",
     listWidth,
     detailsWidth,
-    listOpen: split && choice.list && (!both || bothFit || choice.last === "list"),
-    detailsOpen: split && choice.details && (!both || bothFit || choice.last === "details"),
+    detailsFit,
+    detailsOpen: detailsFit && open,
   };
 }
 
-export function toggleChatListPane(currentlyOpen: boolean): void {
-  usePaneChoice.setState(currentlyOpen ? { list: false } : { list: true, last: "list" });
-}
-
 export function toggleDetailsPane(currentlyOpen: boolean): void {
-  usePaneChoice.setState(currentlyOpen ? { details: false } : { details: true, last: "details" });
+  useDetailsChoice.setState({ open: !currentlyOpen });
 }
 
 /**
  * The plain interface: static list, chat and composer without motion, swipes or glass. E-ink
- * panels need it on any size, and the tablet shell uses it because the phone chat is laid out
- * for the full window.
+ * panels need it on any size, and tablets use it because the phone chat is laid out for the
+ * full window.
  */
 export function useSimpleInterface(): boolean {
   const eink = useEinkMode();

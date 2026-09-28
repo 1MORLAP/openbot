@@ -11,8 +11,8 @@ import { useMobileSession } from "@/features/auth/context/mobile-session-context
 import { MessageActionsProvider } from "@/features/chat/context/message-actions-context";
 import { QueuedMessagesProvider } from "@/features/chat/context/queued-messages-context";
 import { AppDrawerShell } from "@/features/servers/components/app-drawer-shell";
+import { BotStrip } from "@/features/simple/components/bot-strip";
 import { SimpleChatList } from "@/features/simple/components/chat-list";
-import { NavRail } from "@/features/simple/components/nav-rail";
 import { DetailsPane, useOpenChat } from "@/features/workspace/components/details-pane";
 import { ShellWidthContext, usePaneLayout, useSimpleInterface } from "@/features/workspace/components/split-layout";
 import { MobileWorkspaceProvider } from "@/features/workspace/context/mobile-workspace-context";
@@ -34,8 +34,8 @@ function AuthenticatedStack() {
   const eink = useEinkMode();
   const slide = eink ? "none" : "slide_from_right";
   const fade = eink ? "none" : "fade";
-  // Tablet shell: rail | chats | chat | details, where chats and details open and close. The stack
-  // keeps its place in the tree, so rotating between layouts keeps the open chat and its draft.
+  // Wide: chats | chat | details. Compact: bot strip | chat | details, with the list as the home
+  // route. The stack keeps its place in the tree, so rotating keeps the open chat and its draft.
   const panes = usePaneLayout();
   const openChat = useOpenChat();
   // One chat at a time in the middle pane: opening another replaces it instead of stacking.
@@ -48,11 +48,13 @@ function AuthenticatedStack() {
   return (
     <ChatNavigationGateContext value={navigationGate}>
       <View className="flex-1 flex-row">
-        {panes.split ? <NavRail /> : null}
-        {panes.listOpen ? (
+        {panes.mode === "wide" ? (
           <View style={{ width: panes.listWidth }} className="border-r-2 border-border">
             <SimpleChatList />
           </View>
+        ) : panes.mode === "compact" && openChat ? (
+          // The strip only accompanies a chat; on the list screen it would repeat the list.
+          <BotStrip />
         ) : null}
         <View className="flex-1">
           <Stack

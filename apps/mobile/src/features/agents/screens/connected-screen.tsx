@@ -168,21 +168,23 @@ function openFromMenu(href: Href): void {
  * e-ink phones get the plain list.
  */
 export function ConnectedScreen() {
-  const { split } = usePaneLayout();
+  const { mode } = usePaneLayout();
   const eink = useEinkMode();
   const { t } = useText();
-  if (split)
+  // Wide: the list has its own pane, so the home route only invites a choice.
+  if (mode === "wide")
     return (
       <View className="flex-1 items-center justify-center bg-background px-8">
         <Stack.Screen options={{ headerShown: false }} />
         <Typography.Paragraph align="center">{t("mobile.workspace.split.empty")}</Typography.Paragraph>
       </View>
     );
-  if (eink)
+  // Compact and e-ink phones: the plain list is home; a chat opens over it and Back returns.
+  if (mode === "compact" || eink)
     return (
       <>
         <Stack.Screen options={{ headerShown: false }} />
-        <SimpleChatList phone />
+        <SimpleChatList />
       </>
     );
   return <AgentListScreen />;

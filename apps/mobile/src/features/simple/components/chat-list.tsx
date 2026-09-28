@@ -3,7 +3,7 @@ import type { ChannelSummary } from "@openbot/contracts/ipc";
 import { router } from "expo-router";
 import { Button, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { Hash, Plus, Search, Settings } from "lucide-react-native";
+import { Hash, Layers3, Plus, Search, Settings } from "lucide-react-native";
 import { type ReactNode, useMemo } from "react";
 import { FlatList, Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BloubAvatarThumbnail } from "@/features/agents/components/bloub-avatar";
 import { useChannels } from "@/features/channels/components/use-channels";
 import { markdownPreviewText } from "@/features/chat/model/chat-markdown-parser";
+import { useAppDrawer } from "@/features/servers/components/app-drawer-shell";
 import { useOpenChat } from "@/features/workspace/components/details-pane";
 import { useAgentUnread } from "@/features/workspace/components/use-live-workspace";
 import { type MobileAgent, useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
@@ -143,16 +144,37 @@ function HeaderButton({ label, onPress, children }: { label: string; onPress: ()
   );
 }
 
+function FooterButton({ label, onPress, children }: { label: string; onPress: () => void; children: ReactNode }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={() => {
+        void haptics.selection();
+        onPress();
+      }}
+      className="min-h-11 flex-1 flex-row items-center justify-center gap-2 rounded-full border border-border px-3"
+      style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+    >
+      {children}
+      <Typography.Paragraph weight="semibold" numberOfLines={1}>
+        {label}
+      </Typography.Paragraph>
+    </Pressable>
+  );
+}
+
 /**
  * The chat list of the plain interface: every bot and channel of the selected server, grouped by
- * the desktop's sidebar sections, with the open chat inverted. `phone` adds the actions the
- * tablet shell keeps in its navigation rail.
+ * the desktop's sidebar sections, with the open chat outlined. Search and New sit at the top,
+ * Servers and Settings at the bottom.
  */
-export function SimpleChatList({ phone = false }: { phone?: boolean }) {
+export function SimpleChatList() {
   const { t } = useText();
   const insets = useSafeAreaInsets();
   const foreground = String(useThemeColor("foreground"));
   const openChat = useOpenChat();
+  const { openDrawer } = useAppDrawer();
   const {
     activeAgents,
     activeServer,
@@ -214,11 +236,9 @@ export function SimpleChatList({ phone = false }: { phone?: boolean }) {
             {hasServer ? `${activeServer.name} · ${status}` : t("mobile.agent.home.chooseServer")}
           </Typography.Paragraph>
         </View>
-        {phone ? (
-          <HeaderButton label={t("mobile.workspace.shell.search")} onPress={() => router.push("/search-agents")}>
-            <Search color={foreground} size={20} strokeWidth={2} />
-          </HeaderButton>
-        ) : null}
+        <HeaderButton label={t("mobile.workspace.shell.search")} onPress={() => router.push("/search-agents")}>
+          <Search color={foreground} size={20} strokeWidth={2} />
+        </HeaderButton>
         <MenuView
           actions={[
             { id: "add-agent", title: t("mobile.agent.home.addAgent") },
@@ -245,16 +265,11 @@ export function SimpleChatList({ phone = false }: { phone?: boolean }) {
             <Plus color={foreground} size={22} strokeWidth={2} />
           </View>
         </MenuView>
-        {phone ? (
-          <HeaderButton label={t("mobile.workspace.shell.settings")} onPress={() => router.push("/settings")}>
-            <Settings color={foreground} size={20} strokeWidth={2} />
-          </HeaderButton>
-        ) : null}
       </View>
       <FlatList
         data={items}
         keyExtractor={(item) => `${item.kind}:${item.id}`}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 16, flexGrow: 1 }}
+        contentContainerStyle={{ paddingBottom: 16, flexGrow: 1 }}
         renderItem={({ item }) =>
           item.kind === "section" ? (
             <View className="px-5 pt-4 pb-1">
@@ -287,6 +302,14 @@ export function SimpleChatList({ phone = false }: { phone?: boolean }) {
           </View>
         }
       />
+      <View className="flex-row gap-2 border-t border-border px-3 pt-2.5" style={{ paddingBottom: insets.bottom + 10 }}>
+        <FooterButton label={t("mobile.workspace.shell.servers")} onPress={openDrawer}>
+          <Layers3 color={foreground} size={20} strokeWidth={2} />
+        </FooterButton>
+        <FooterButton label={t("mobile.workspace.shell.settings")} onPress={() => router.push("/settings")}>
+          <Settings color={foreground} size={20} strokeWidth={2} />
+        </FooterButton>
+      </View>
     </View>
   );
 }

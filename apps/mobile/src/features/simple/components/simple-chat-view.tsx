@@ -4,6 +4,7 @@ import { useThemeColor } from "heroui-native/hooks";
 import { ArrowLeft, Hash, Info, Mic, Paperclip, Send, Square } from "lucide-react-native";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { FlatList, Pressable, TextInput, View } from "react-native";
+import { Directions, Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useReanimatedKeyboardAnimation } from "react-native-keyboard-controller";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -211,7 +212,9 @@ export function SimpleChatView(props: ChatViewProps) {
   const colors = { foreground: String(foreground), background: String(background) };
   // The composer is a native input outside the type scale, so it follows the font size itself.
   const fontScale = useFontScale();
-  const { split, detailsOpen } = usePaneLayout();
+  const { mode, detailsFit, detailsOpen } = usePaneLayout();
+  // Back returns to the chat list unless the list is already beside the chat.
+  const showBack = mode !== "wide";
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [stopping, setStopping] = useState(false);
@@ -286,8 +289,19 @@ export function SimpleChatView(props: ChatViewProps) {
       .finally(() => setStopping(false));
   }
 
+  function leaveChat() {
+    if (router.canGoBack()) router.back();
+    else router.replace("/connected");
+  }
+  // A swipe to the right returns to the chat list, like Back.
+  const swipeBack = Gesture.Fling()
+    .direction(Directions.RIGHT)
+    .enabled(showBack)
+    .runOnJS(true)
+    .onEnd(() => leaveChat());
+
   function openInfo() {
-    if (split) {
+    if (detailsFit) {
       toggleDetailsPane(detailsOpen);
       return;
     }
@@ -310,186 +324,187 @@ export function SimpleChatView(props: ChatViewProps) {
   const queued = props.queue?.queued.length ?? 0;
 
   return (
-    <View className="flex-1 bg-background">
-      <View
-        className="flex-row items-center gap-3 border-b border-border px-3 pb-3"
-        style={{ paddingTop: insets.top + 10 }}
-      >
-        {split ? null : (
-          <IconButton
-            label={t("common.back")}
-            onPress={() => (router.canGoBack() ? router.back() : router.replace("/connected"))}
-          >
-            <ArrowLeft color={colors.foreground} size={22} strokeWidth={2} />
-          </IconButton>
-        )}
-        {target.kind === "agent" ? (
-          <BloubAvatarThumbnail
-            agentId={target.id}
-            serverId={target.serverId}
-            seed={target.avatarSeed}
-            hue={target.avatarHue}
-            size={40}
-          />
-        ) : (
-          <View className="size-10 items-center justify-center rounded-full border-2 border-foreground">
-            <Hash color={colors.foreground} size={20} strokeWidth={2.2} />
-          </View>
-        )}
-        <View className="min-w-0 flex-1">
-          <Typography.Paragraph weight="bold" numberOfLines={1}>
-            {target.name}
-          </Typography.Paragraph>
-          <Typography.Paragraph type="body-sm" numberOfLines={1}>
-            {activity ?? (canSend ? t("mobile.workspace.status.online") : t("mobile.workspace.status.offline"))}
-          </Typography.Paragraph>
-        </View>
-        <IconButton
-          label={
-            split
-              ? t(detailsOpen ? "mobile.workspace.split.hideDetails" : "mobile.workspace.split.showDetails")
-              : t("mobile.agent.menu.info")
-          }
-          onPress={openInfo}
-          filled={split && detailsOpen}
+    <GestureDetector gesture={swipeBack}>
+      <View className="flex-1 bg-background">
+        <View
+          className="flex-row items-center gap-3 border-b border-border px-3 pb-3"
+          style={{ paddingTop: insets.top + 10 }}
         >
-          <Info color={split && detailsOpen ? colors.background : colors.foreground} size={20} strokeWidth={2} />
-        </IconButton>
-      </View>
-
-      <FlatList
-        inverted
-        data={rows}
-        keyExtractor={(item) => item.id}
-        className="flex-1"
-        contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12 }}
-        keyboardShouldPersistTaps="handled"
-        renderItem={({ item }) => (
-          <View className="w-full max-w-[760px] self-center">
-            <MessageRow message={item} props={props} agentsById={agentsById} colors={colors} t={t} />
-          </View>
-        )}
-        ListEmptyComponent={
-          <View className="items-center py-16" style={{ transform: [{ scaleY: -1 }] }}>
-            <Typography.Paragraph align="center">
-              {props.historyLoadFailed
-                ? t("mobile.chat.history.loadFailed")
-                : props.ready
-                  ? t("mobile.chat.composer.ask", { name: target.name })
-                  : canSend
-                    ? t("mobile.chat.history.loading")
-                    : t("mobile.chat.history.waiting")}
+          {showBack ? (
+            <IconButton label={t("common.back")} onPress={leaveChat}>
+              <ArrowLeft color={colors.foreground} size={22} strokeWidth={2} />
+            </IconButton>
+          ) : null}
+          {target.kind === "agent" ? (
+            <BloubAvatarThumbnail
+              agentId={target.id}
+              serverId={target.serverId}
+              seed={target.avatarSeed}
+              hue={target.avatarHue}
+              size={40}
+            />
+          ) : (
+            <View className="size-10 items-center justify-center rounded-full border-2 border-foreground">
+              <Hash color={colors.foreground} size={20} strokeWidth={2.2} />
+            </View>
+          )}
+          <View className="min-w-0 flex-1">
+            <Typography.Paragraph weight="bold" numberOfLines={1}>
+              {target.name}
             </Typography.Paragraph>
-            {props.historyLoadFailed ? (
-              <Button variant="secondary" onPress={props.fetchHistory}>
-                <Button.Label>{t("common.tryAgain")}</Button.Label>
+            <Typography.Paragraph type="body-sm" numberOfLines={1}>
+              {activity ?? (canSend ? t("mobile.workspace.status.online") : t("mobile.workspace.status.offline"))}
+            </Typography.Paragraph>
+          </View>
+          <IconButton
+            label={
+              detailsFit
+                ? t(detailsOpen ? "mobile.workspace.split.hideDetails" : "mobile.workspace.split.showDetails")
+                : t("mobile.agent.menu.info")
+            }
+            onPress={openInfo}
+            filled={detailsOpen}
+          >
+            <Info color={detailsOpen ? colors.background : colors.foreground} size={20} strokeWidth={2} />
+          </IconButton>
+        </View>
+
+        <FlatList
+          inverted
+          data={rows}
+          keyExtractor={(item) => item.id}
+          className="flex-1"
+          contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12 }}
+          keyboardShouldPersistTaps="handled"
+          renderItem={({ item }) => (
+            <View className="w-full max-w-[760px] self-center">
+              <MessageRow message={item} props={props} agentsById={agentsById} colors={colors} t={t} />
+            </View>
+          )}
+          ListEmptyComponent={
+            <View className="items-center py-16" style={{ transform: [{ scaleY: -1 }] }}>
+              <Typography.Paragraph align="center">
+                {props.historyLoadFailed
+                  ? t("mobile.chat.history.loadFailed")
+                  : props.ready
+                    ? t("mobile.chat.composer.ask", { name: target.name })
+                    : canSend
+                      ? t("mobile.chat.history.loading")
+                      : t("mobile.chat.history.waiting")}
+              </Typography.Paragraph>
+              {props.historyLoadFailed ? (
+                <Button variant="secondary" onPress={props.fetchHistory}>
+                  <Button.Label>{t("common.tryAgain")}</Button.Label>
+                </Button>
+              ) : null}
+            </View>
+          }
+          ListFooterComponent={
+            props.hasOlder ? (
+              <View className="items-center py-3">
+                <Button
+                  variant="outline"
+                  className="rounded-full"
+                  isDisabled={props.olderLoading}
+                  onPress={props.loadOlder}
+                >
+                  <Button.Label>
+                    {props.olderLoading
+                      ? t("mobile.chat.history.loadingOlder")
+                      : props.olderError
+                        ? t("mobile.chat.history.retryOlder")
+                        : t("mobile.chat.history.loadOlder")}
+                  </Button.Label>
+                </Button>
+              </View>
+            ) : null
+          }
+        />
+
+        {props.notice ? (
+          <View className="border-t border-border px-4 py-2">
+            <Typography.Paragraph type="body-sm">{props.notice}</Typography.Paragraph>
+          </View>
+        ) : null}
+        {activity || queued || error ? (
+          <View className="mx-3 mb-1 flex-row items-center gap-3 rounded-full border border-border py-1.5 pr-1.5 pl-4">
+            <Typography.Paragraph
+              type="body-sm"
+              weight="semibold"
+              className={`min-w-0 flex-1 ${error ? "text-danger-text" : ""}`}
+              numberOfLines={2}
+            >
+              {error ?? activity ?? ""}
+            </Typography.Paragraph>
+            {queued && props.queue ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-full"
+                onPress={() =>
+                  router.push({ pathname: "/queued-messages", params: { chat: props.queue?.chatId ?? "" } })
+                }
+              >
+                <Button.Label>{t("mobile.workspace.shell.queued", { count: queued })}</Button.Label>
+              </Button>
+            ) : null}
+            {canStop ? (
+              <Button variant="outline" size="sm" className="rounded-full" onPress={stop}>
+                <Square color={colors.foreground} size={14} strokeWidth={2.5} fill={colors.foreground} />
+                <Button.Label>{t("mobile.workspace.shell.stop")}</Button.Label>
               </Button>
             ) : null}
           </View>
-        }
-        ListFooterComponent={
-          props.hasOlder ? (
-            <View className="items-center py-3">
-              <Button
-                variant="outline"
-                className="rounded-full"
-                isDisabled={props.olderLoading}
-                onPress={props.loadOlder}
+        ) : null}
+
+        {readOnly ? null : (
+          <View className="flex-row items-end gap-2 px-3 pt-2" style={{ paddingBottom: insets.bottom + 12 }}>
+            {dictation.available ? (
+              <IconButton
+                label={listening ? t("mobile.chat.composer.stopDictation") : t("mobile.chat.composer.dictate")}
+                onPress={() => (listening ? void dictation.finish() : dictation.start(draft))}
+                disabled={!canSend}
+                filled={listening}
               >
-                <Button.Label>
-                  {props.olderLoading
-                    ? t("mobile.chat.history.loadingOlder")
-                    : props.olderError
-                      ? t("mobile.chat.history.retryOlder")
-                      : t("mobile.chat.history.loadOlder")}
-                </Button.Label>
-              </Button>
-            </View>
-          ) : null
-        }
-      />
-
-      {props.notice ? (
-        <View className="border-t border-border px-4 py-2">
-          <Typography.Paragraph type="body-sm">{props.notice}</Typography.Paragraph>
-        </View>
-      ) : null}
-      {activity || queued || error ? (
-        <View className="mx-3 mb-1 flex-row items-center gap-3 rounded-full border border-border py-1.5 pr-1.5 pl-4">
-          <Typography.Paragraph
-            type="body-sm"
-            weight="semibold"
-            className={`min-w-0 flex-1 ${error ? "text-danger-text" : ""}`}
-            numberOfLines={2}
-          >
-            {error ?? activity ?? ""}
-          </Typography.Paragraph>
-          {queued && props.queue ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-full"
-              onPress={() => router.push({ pathname: "/queued-messages", params: { chat: props.queue?.chatId ?? "" } })}
-            >
-              <Button.Label>{t("mobile.workspace.shell.queued", { count: queued })}</Button.Label>
-            </Button>
-          ) : null}
-          {canStop ? (
-            <Button variant="outline" size="sm" className="rounded-full" onPress={stop}>
-              <Square color={colors.foreground} size={14} strokeWidth={2.5} fill={colors.foreground} />
-              <Button.Label>{t("mobile.workspace.shell.stop")}</Button.Label>
-            </Button>
-          ) : null}
-        </View>
-      ) : null}
-
-      {readOnly ? null : (
-        <View className="flex-row items-end gap-2 px-3 pt-2" style={{ paddingBottom: insets.bottom + 12 }}>
-          {dictation.available ? (
+                <Mic color={listening ? colors.background : colors.foreground} size={22} strokeWidth={2} />
+              </IconButton>
+            ) : null}
+            <TextInput
+              value={draft}
+              onChangeText={setDraft}
+              editable={canSend}
+              multiline
+              placeholder={
+                listening
+                  ? t("mobile.workspace.shell.listening")
+                  : answersQuestion
+                    ? t("mobile.workspace.shell.answer")
+                    : t("mobile.chat.composer.ask", { name: target.name })
+              }
+              placeholderTextColor={colors.foreground}
+              className="min-w-0 flex-1 rounded-3xl border-2 border-border px-5 py-3 text-body text-foreground"
+              style={{
+                minHeight: 48,
+                maxHeight: 220,
+                borderRadius: 24,
+                fontSize: 16 * fontScale,
+                lineHeight: 24 * fontScale,
+                textAlignVertical: "top",
+              }}
+              accessibilityLabel={t("mobile.chat.composer.ask", { name: target.name })}
+            />
             <IconButton
-              label={listening ? t("mobile.chat.composer.stopDictation") : t("mobile.chat.composer.dictate")}
-              onPress={() => (listening ? void dictation.finish() : dictation.start(draft))}
-              disabled={!canSend}
-              filled={listening}
+              label={t("mobile.chat.composer.send")}
+              onPress={() => void submit()}
+              disabled={!canSend || sending || (!draft.trim() && !listening)}
+              filled
             >
-              <Mic color={listening ? colors.background : colors.foreground} size={22} strokeWidth={2} />
+              <Send color={colors.background} size={20} strokeWidth={2} />
             </IconButton>
-          ) : null}
-          <TextInput
-            value={draft}
-            onChangeText={setDraft}
-            editable={canSend}
-            multiline
-            placeholder={
-              listening
-                ? t("mobile.workspace.shell.listening")
-                : answersQuestion
-                  ? t("mobile.workspace.shell.answer")
-                  : t("mobile.chat.composer.ask", { name: target.name })
-            }
-            placeholderTextColor={colors.foreground}
-            className="min-w-0 flex-1 rounded-3xl border-2 border-border px-5 py-3 text-body text-foreground"
-            style={{
-              minHeight: 48,
-              maxHeight: 220,
-              borderRadius: 24,
-              fontSize: 16 * fontScale,
-              lineHeight: 24 * fontScale,
-              textAlignVertical: "top",
-            }}
-            accessibilityLabel={t("mobile.chat.composer.ask", { name: target.name })}
-          />
-          <IconButton
-            label={t("mobile.chat.composer.send")}
-            onPress={() => void submit()}
-            disabled={!canSend || sending || (!draft.trim() && !listening)}
-            filled
-          >
-            <Send color={colors.background} size={20} strokeWidth={2} />
-          </IconButton>
-        </View>
-      )}
-      <Animated.View style={keyboardSpace} />
-    </View>
+          </View>
+        )}
+        <Animated.View style={keyboardSpace} />
+      </View>
+    </GestureDetector>
   );
 }

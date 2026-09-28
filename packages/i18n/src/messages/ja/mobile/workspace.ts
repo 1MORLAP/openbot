@@ -39,7 +39,6 @@ export const messages = {
   "mobile.workspace.split.members": "メンバー",
   "mobile.workspace.shell.chats": "チャット",
   "mobile.workspace.shell.search": "検索",
-  "mobile.workspace.shell.new": "新規",
   "mobile.workspace.shell.servers": "サーバー",
   "mobile.workspace.shell.settings": "設定",
   "mobile.workspace.shell.openChat": "{name}とのチャットを開く",
