@@ -31,6 +31,7 @@ import {
   hasVisibleToasts,
   toast,
 } from "@openbot/ui";
+import type { AgentMessage } from "@openbot/ui/data";
 import { AccountDock } from "@openbot/ui/features/account/AccountDock";
 import { computeAgentAvatarMoods } from "@openbot/ui/features/agents/agent-avatar-mood";
 import { createFirstAgentDraft, type FirstAgentDraft } from "@openbot/ui/features/agents/FirstAgentSetup";
@@ -96,6 +97,11 @@ const WEB_APP_INFO: AppInfo = { name: "OpenBot", version: "web", platform: "darw
 const PHONE_QUERY = "(max-width: 720px)";
 /** The account whose queue edit the browser may hold under `QUEUE_EDIT_STORAGE_KEY`. */
 const QUEUE_EDIT_ACCOUNT_KEY = "openbot.web.queue-edit-account";
+
+/** The host names attachment previews with the desktop `openbot-attachment:` scheme, which a browser cannot load. */
+function withoutPreviewUrls(message: AgentMessage): AgentMessage {
+  return { ...message, attachments: message.attachments?.map((attachment) => ({ ...attachment, previewUrl: null })) };
+}
 
 function newAgentAvatar(): Pick<FirstAgentDraft, "avatarSeed" | "avatarHue"> {
   const { avatarSeed, avatarHue } = createFirstAgentDraft();
@@ -260,6 +266,10 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       .join(",");
     return `${hostId}:${connected}`;
   });
+  // As on desktop: a reading is for one host and one set of connected providers.
+  createEffect(usageTargetKey, () => {
+    setAccountUsage(null);
+  });
   const usageReady = createMemo(() => {
     const current = status();
     return (
@@ -373,6 +383,11 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   onCleanup(
     workspace.onHostEvent((event) => {
       if (event.type === "turn-completed") playCompletionSoundForAgentEvent(event, workspace.state.agents);
+      // As on desktop: the host sends a new reading when a provider reports usage.
+      if (event.type === "usage-changed" && untrack(usageTargetKey)) {
+        usageGeneration += 1;
+        setAccountUsage(event.usage);
+      }
     }),
   );
   const [searchOpen, setSearchOpen] = createSignal(false);
@@ -625,8 +640,18 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       return undefined;
     return () => clearAgentContext(hostRequest(), agent.id);
   });
-  /** As on desktop: an answered prompt stays until its bubble has shown the answers. */
-  const [answeredPrompt, setAnsweredPrompt] = createSignal<Extract<AgentEvent, { type: "prompt" }>>();
+  /**
+   * As on desktop: an answered prompt stays until its bubble has shown the answers. After that, a
+   * snapshot or page that the host made before it had the answer does not open the prompt again.
+   */
+  const [answeredPrompt, setAnsweredPrompt] = createSignal<{
+    prompt: Extract<AgentEvent, { type: "prompt" }>;
+    presented: boolean;
+  }>();
+  const isAnswered = (turnId: string, requestId: string | number) => {
+    const answered = answeredPrompt()?.prompt;
+    return answered?.turnId === turnId && String(answered.requestId) === String(requestId);
+  };
   // The bubble unmounts with its conversation and then cannot report that it showed the answers.
   createEffect(
     () => ({ agentId: workspace.state.selectedId, hidden: creating() || channelOpen() }),
@@ -636,14 +661,26 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     if (workspace.state.status !== "online") return;
     const page = workspace.conversation()?.page;
     if (!page?.threadId) return;
-    const answered = answeredPrompt();
-    if (answered?.agentId === page.agentId && answered.threadId === page.threadId) return answered;
     const pending = workspace.state.prompts.find(
-      (item) => item.agentId === page.agentId && item.threadId === page.threadId,
+      (item) =>
+        item.agentId === page.agentId && item.threadId === page.threadId && !isAnswered(item.turnId, item.requestId),
     );
     if (pending) return pending;
+    const answered = answeredPrompt();
+    if (
+      answered &&
+      !answered.presented &&
+      answered.prompt.agentId === page.agentId &&
+      answered.prompt.threadId === page.threadId
+    )
+      return answered.prompt;
+    const activeTurnId = page.activeTurnId;
     const message = page.messages.findLast(
-      (item) => item.turnId === page.activeTurnId && item.questionPrompt && !item.questionPrompt.resolution,
+      (item) =>
+        item.turnId === activeTurnId &&
+        item.questionPrompt &&
+        !item.questionPrompt.resolution &&
+        !(activeTurnId && isAnswered(activeTurnId, item.questionPrompt.requestId)),
     );
     if (!message?.questionPrompt || !page.activeTurnId) return;
     return {
@@ -657,10 +694,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   });
   const messages = createMemo(() =>
     toAgentMessages(workspace.conversation()?.page?.messages ?? [], workspace.state.selectedId ?? undefined).map(
-      (message) => ({
-        ...message,
-        attachments: message.attachments?.map((attachment) => ({ ...attachment, previewUrl: null })),
-      }),
+      withoutPreviewUrls,
     ),
   );
   /** The replied-to messages that are not on the loaded pages. The host sends them with each page. */
@@ -668,13 +702,10 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     const page = workspace.conversation()?.page;
     if (!page) return {};
     return Object.fromEntries(
-      Object.entries(page.references).map(([id, reference]) => {
-        const message = toAgentMessage(reference, page.agentId);
-        return [
-          id,
-          { ...message, attachments: message.attachments?.map((attachment) => ({ ...attachment, previewUrl: null })) },
-        ];
-      }),
+      Object.entries(page.references).map(([id, reference]) => [
+        id,
+        withoutPreviewUrls(toAgentMessage(reference, page.agentId)),
+      ]),
     );
   });
   createEffect(
@@ -1231,7 +1262,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
               onAnswerPrompt={async (answers) => {
                 const question = prompt();
                 if (!question) return false;
-                setAnsweredPrompt(question);
+                setAnsweredPrompt({ prompt: question, presented: false });
                 try {
                   await workspace.answer({ requestId: question.requestId, answers });
                 } catch (error) {
@@ -1242,8 +1273,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
               }}
               onPromptResolutionPresented={(_agentId, turnId, requestId) => {
                 const answered = answeredPrompt();
-                if (answered?.turnId === turnId && String(answered.requestId) === String(requestId))
-                  setAnsweredPrompt(undefined);
+                if (answered && isAnswered(turnId, requestId)) setAnsweredPrompt({ ...answered, presented: true });
               }}
               onRespondToApproval={async (decision) => {
                 const item = approval();

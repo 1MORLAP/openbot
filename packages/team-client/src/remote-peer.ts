@@ -24,7 +24,10 @@ import {
 } from "@openbot/contracts/team-protocol";
 import { channelEvent } from "@openbot/contracts/team-protocol/channels-v1";
 import { teamSideRouteCodec } from "@openbot/contracts/team-protocol/side-routes";
-import { toWireTeamProtocolV1ClientEvent } from "@openbot/contracts/team-protocol/v1-adapter";
+import {
+  type TeamProtocolV1CurrentEventControl,
+  toWireTeamProtocolV1ClientEvent,
+} from "@openbot/contracts/team-protocol/v1-adapter";
 import { sourceText } from "@openbot/i18n/source";
 import { createEd25519Identity, type Ed25519Identity, signEd25519, verifyEd25519Pem } from "./ed25519";
 import { createRemoteFileReceiver } from "./file-download";
@@ -215,12 +218,7 @@ export function createRemoteTeamPeer(actions: ActionsRef) {
     setTyping(agentId: string | null, typing: boolean) {
       const state = peer;
       if (!state || !isPeerOnline(state)) return;
-      const control = toWireTeamProtocolV1ClientEvent({ type: "team-typing", agentId, typing });
-      void sendPayload(
-        state,
-        "events",
-        encodeTeamProtocolV2Frame({ version: 2, type: "event-control", control }),
-      ).catch(() => undefined);
+      void sendEventControl(state, { type: "team-typing", agentId, typing }).catch(() => undefined);
     },
     execute: (command: RemoteTeamCommand) => executeCommand(command, actions),
     dispose: async () => {
@@ -917,6 +915,18 @@ export function createRemoteTeamPeer(actions: ActionsRef) {
       state,
       "events",
       encodeTeamProtocolV2Frame({ version: 2, type: "event-ack", throughSequence: state.lastEventSequence }),
+    );
+  }
+
+  async function sendEventControl(state: PeerState, control: TeamProtocolV1CurrentEventControl): Promise<void> {
+    await sendPayload(
+      state,
+      "events",
+      encodeTeamProtocolV2Frame({
+        version: 2,
+        type: "event-control",
+        control: toWireTeamProtocolV1ClientEvent(control),
+      }),
     );
   }
 
