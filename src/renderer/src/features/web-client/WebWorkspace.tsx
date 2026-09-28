@@ -23,6 +23,7 @@ import type { TeamApiRequest } from "@openbot/team-client/team-api-requests";
 import { Alert, AlertActions, AlertContent, AlertDescription, AlertTitle, Button, toast } from "@openbot/ui";
 import { AccountDock } from "@openbot/ui/features/account/AccountDock";
 import { computeAgentAvatarMoods } from "@openbot/ui/features/agents/agent-avatar-mood";
+import { createFirstAgentDraft, type FirstAgentDraft } from "@openbot/ui/features/agents/FirstAgentSetup";
 import { JoinServerDialog } from "@openbot/ui/features/servers/JoinServerDialog";
 import { ServerRail } from "@openbot/ui/features/servers/ServerRail";
 import { Sidebar } from "@openbot/ui/features/sidebar/Sidebar";
@@ -77,6 +78,11 @@ const CONNECTING_STATUS: AgentStatus = {
 const WEB_APP_INFO: AppInfo = { name: "OpenBot", version: "web", platform: "darwin", variant: "production" };
 /** Below this width the web shows one pane at a time; see `web-client.css`. */
 const PHONE_QUERY = "(max-width: 720px)";
+
+function newAgentAvatar(): Pick<FirstAgentDraft, "avatarSeed" | "avatarHue"> {
+  const { avatarSeed, avatarHue } = createFirstAgentDraft();
+  return { avatarSeed, avatarHue };
+}
 
 type WebWorkspaceProps = {
   accountId: string;
@@ -157,6 +163,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   let usageGeneration = 0;
   const [joinOpen, setJoinOpen] = createSignal(false);
   const [creating, setCreating] = createSignal(false);
+  /** The new agent form's avatar. The first-agent row in an empty sidebar shows it. */
+  const [agentAvatar, setAgentAvatar] = createSignal(newAgentAvatar());
   const [mobilePane, setMobilePane] = createSignal<WebMobilePane>("conversation");
   const [settingsRequest, setSettingsRequest] = createSignal<{ agentId: string; nonce: number } | null>(null);
   const servers = createMemo<ServerSummary[]>(() =>
@@ -582,6 +590,17 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       await select(agent.id);
     });
   }
+  function selectServer(id: string) {
+    const host = workspace.state.hosts.find((item) => item.hostId === id);
+    if (host) void workspace.connect(host);
+  }
+  function startCreate() {
+    setMobilePane("conversation");
+    channels.close();
+    setUsage(null);
+    setCreating(true);
+  }
+  const createSupported = () => workspace.state.status === "online" && workspace.state.host !== null;
   const unavailable = async (): Promise<never> => {
     throw new Error(t("webClient.error.desktopOnly"));
   };
@@ -614,17 +633,16 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
           }
           left={
             <>
-              <ServerRail
-                servers={servers()}
-                onSelect={(id) => {
-                  const host = workspace.state.hosts.find((item) => item.hostId === id);
-                  if (host) void workspace.connect(host);
-                }}
-                onReorder={() => {}}
-                onAdd={() => setJoinOpen(true)}
-                onOpenSettings={(id, trigger) => void openServerSettings(id, trigger)}
-                onOpenUsage={(id, trigger) => void openUsage(id, trigger)}
-              />
+              <Show when={layout.serverRailVisible()}>
+                <ServerRail
+                  servers={servers()}
+                  onSelect={selectServer}
+                  onReorder={() => {}}
+                  onAdd={() => setJoinOpen(true)}
+                  onOpenSettings={(id, trigger) => void openServerSettings(id, trigger)}
+                  onOpenUsage={(id, trigger) => void openUsage(id, trigger)}
+                />
+              </Show>
               <Sidebar
                 channels={channelsSupported() ? channels.state.channels.filter((channel) => !channel.archived) : []}
                 deletedChannels={
@@ -644,9 +662,14 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 onToggleArchivedChannels={channelsSupported() ? channels.toggleArchived : undefined}
                 onCreateChannel={channelsSupported() ? channels.create : undefined}
                 serverName={workspace.state.host?.name ?? "OpenBot"}
-                onOpenServerSettings={(trigger) => {
-                  const host = workspace.state.host;
-                  if (host) void openServerSettings(host.hostId, trigger);
+                serverMenu={{
+                  servers: servers(),
+                  view: layout.serverView(),
+                  onViewChange: layout.setServerView,
+                  onSelect: selectServer,
+                  onAdd: () => setJoinOpen(true),
+                  onOpenSettings: (id, trigger) => void openServerSettings(id, trigger),
+                  onOpenUsage: (id, trigger) => void openUsage(id, trigger),
                 }}
                 agents={workspace.profiles()}
                 activeAgentId={channelOpen() ? "" : (workspace.state.selectedId ?? "")}
@@ -673,13 +696,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   void select(id);
                 }}
                 onSelectPerson={() => {}}
-                onCreateAgent={() => {
-                  setMobilePane("conversation");
-                  channels.close();
-                  setUsage(null);
-                  setCreating(true);
-                }}
-                createSupported={workspace.state.status === "online" && workspace.state.host !== null}
+                onCreateAgent={startCreate}
+                createSupported={createSupported()}
                 onEditAgent={(id) => {
                   setMobilePane("conversation");
                   void select(id);
@@ -700,6 +718,16 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 compact={compact()}
                 onExpand={layout.expandSidebar}
                 onOpenMarketplace={() => setMarketplaceOpen(true)}
+                emptyAction={
+                  workspace.state.agentsLoaded && workspace.profiles().length === 0 && createSupported()
+                    ? {
+                        label: t("sidebar.empty.firstAgent"),
+                        avatarSeed: agentAvatar().avatarSeed,
+                        avatarHue: agentAvatar().avatarHue,
+                        onSelect: startCreate,
+                      }
+                    : undefined
+                }
               />
               <AccountDock
                 remoteClient
@@ -890,9 +918,13 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
               runtime={workspace.runtime}
               capabilities={workspace.state.capabilities}
               customProviders={providerSettings()?.customProviders}
+              // A new form starts empty, with the avatar that the first-agent row showed.
+              initialDraft={{ ...createFirstAgentDraft(), ...untrack(agentAvatar) }}
+              onDraftChange={({ avatarSeed, avatarHue }) => setAgentAvatar({ avatarSeed, avatarHue })}
               onClose={() => setCreating(false)}
               onSaved={async () => {
                 await workspace.refresh();
+                setAgentAvatar(newAgentAvatar());
                 setCreating(false);
               }}
             />
