@@ -12,7 +12,11 @@ const key = "openbot.mobile.font-size.v1";
 export const FONT_SIZE_MIN = 0.7;
 export const FONT_SIZE_MAX = 2;
 
-/** E-ink readers show text 20% larger than the device standard; their 100% is that size. */
+/**
+ * The size that 100% stands for: text 15% larger than the platform standard, and 20% larger on
+ * e-ink readers.
+ */
+const BASE = 1.15;
 const EINK_BASE = 1.2;
 
 // Tailwind's type scale in points. Line heights are ratios, so they follow the size.
@@ -32,7 +36,7 @@ export const useFontSize = create<{ value: number; ready: boolean }>(() => ({ va
 
 /** The factor applied to text: the setting times the device's base size. */
 export function fontScaleFor(value: number): number {
-  return value * (isEinkDevice() ? EINK_BASE : 1);
+  return value * (isEinkDevice() ? EINK_BASE : BASE);
 }
 
 function apply(value: number): void {
