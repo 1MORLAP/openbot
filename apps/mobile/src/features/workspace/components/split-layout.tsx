@@ -7,7 +7,7 @@ import { useEinkMode } from "@/shared/lib/eink";
 /** Width, in dp, from which the chat list can stay beside the open chat. */
 const SPLIT_MIN_WIDTH = 600;
 /** The navigation rail's width. */
-const RAIL_WIDTH = 80;
+const RAIL_WIDTH = 96;
 /** The chat never gets narrower than this; a side pane that would squeeze it closes instead. */
 const CHAT_MIN_WIDTH = 360;
 

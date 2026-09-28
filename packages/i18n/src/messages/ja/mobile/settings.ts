@@ -48,7 +48,11 @@ export const messages = {
   "mobile.settings.appearance.eink": "E-ink",
   "mobile.settings.appearance.theme": "テーマ",
   "mobile.settings.appearance.zoom": "ズーム",
-  "mobile.settings.appearance.zoomFooter": "ズームはアプリ全体を拡大します。変更するとアプリが再起動します。",
+  "mobile.settings.appearance.fontSize": "フォントサイズ",
+  "mobile.settings.appearance.fontSizeSample": "いろはにほへと ちりぬるを わかよたれそ",
+  "mobile.settings.appearance.fontSizeApply": "適用して再起動",
+  "mobile.settings.appearance.zoomFooter":
+    "フォントサイズは文字だけを、ズームはアプリ全体を拡大します。どちらかを変更するとアプリが再起動します。",
   "mobile.settings.feedback.title": "フィードバック",
   "mobile.settings.feedback.footer": "このデバイスでのアプリ操作の触覚フィードバックです。",
   "mobile.settings.feedback.haptics": "触覚フィードバック",

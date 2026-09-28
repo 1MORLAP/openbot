@@ -88,7 +88,12 @@ export function SettingsRow({
           </Typography.Paragraph>
         ) : null}
       </View>
-      {trailing || (onPress && disclosure ? <ChevronRight size={18} color={muted} strokeWidth={1.5} /> : null)}
+      {/* A wide picker must not squeeze its label into one letter per line on narrow panes. */}
+      {trailing ? (
+        <View className="max-w-[60%] shrink">{trailing}</View>
+      ) : onPress && disclosure ? (
+        <ChevronRight size={18} color={muted} strokeWidth={1.5} />
+      ) : null}
     </>
   );
   return onPress ? (

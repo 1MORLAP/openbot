@@ -1,8 +1,11 @@
-import { Host, Picker, Switch } from "@expo/ui";
+import { Host, Picker, Slider, Switch } from "@expo/ui";
 import { APP_LANGUAGE_OPTIONS } from "@openbot/i18n/languages";
 import { router } from "expo-router";
-import { Typography } from "heroui-native";
+import { Button, Typography } from "heroui-native";
+import { useThemeColor } from "heroui-native/hooks";
+import { Type } from "lucide-react-native";
 import { useEffect, useState } from "react";
+import { View } from "react-native";
 import { useUniwind } from "uniwind";
 import { saveAnalyticsPreference, useAnalyticsPreference } from "@/features/analytics/preference";
 import { dictationLanguageOptions } from "@/features/chat/model/voice-dictation";
@@ -21,32 +24,114 @@ import { speechRecognition } from "@/shared/lib/speech-recognition";
 import { useText } from "@/shared/lib/text";
 import { DisplayZoom } from "../../../../modules/display-zoom";
 
-// Changing the zoom restarts the app, so the picker only needs the value read at startup.
-function ZoomRow({ dark }: { dark: boolean }) {
-  const { t } = useText();
-  const [zoom] = useState(() => DisplayZoom?.getZoom() ?? 1);
-  const zoomModule = DisplayZoom;
-  if (!zoomModule) return null;
+// Changing either scale restarts the app, so the pickers only need the values read at startup.
+function ScaleRow({
+  dark,
+  label,
+  value,
+  values,
+  onChange,
+}: {
+  dark: boolean;
+  label: string;
+  value: number;
+  values: readonly number[];
+  onChange: (value: number) => void;
+}) {
   return (
     <SettingsRow
       trailing={
         <Host matchContents colorScheme={dark ? "dark" : "light"}>
           <Picker
-            selectedValue={String(zoom)}
+            selectedValue={String(value)}
             onValueChange={(next) => {
               void haptics.selection();
-              zoomModule.setZoom(Number(next));
+              onChange(Number(next));
             }}
           >
-            {zoomModule.zooms.map((value) => (
-              <Picker.Item key={value} label={`${Math.round(value * 100)}%`} value={String(value)} />
+            {values.map((item) => (
+              <Picker.Item key={item} label={`${Math.round(item * 100)}%`} value={String(item)} />
             ))}
           </Picker>
         </Host>
       }
     >
-      <Typography.Paragraph>{t("mobile.settings.appearance.zoom")}</Typography.Paragraph>
+      <Typography.Paragraph>{label}</Typography.Paragraph>
     </SettingsRow>
+  );
+}
+
+const FONT_SIZE_MIN = 0.7;
+const FONT_SIZE_MAX = 2;
+
+/**
+ * Font size as a slider from small to large A, like iOS. The sample line previews the size while
+ * dragging; Apply restarts the app, because Android lays out text at the new size only then.
+ */
+function FontSizeRow({ dark }: { dark: boolean }) {
+  const { t } = useText();
+  const [saved] = useState(() => DisplayZoom?.getTextScale() ?? 1);
+  const [pending, setPending] = useState(saved);
+  const foreground = String(useThemeColor("foreground"));
+  const scales = DisplayZoom;
+  if (!scales) return null;
+  const changed = Math.abs(pending - saved) > 0.001;
+  return (
+    <View className="gap-3 px-4 py-3">
+      <View className="flex-row items-center justify-between">
+        <Typography.Paragraph>{t("mobile.settings.appearance.fontSize")}</Typography.Paragraph>
+        <Typography.Paragraph weight="semibold">{`${Math.round(pending * 100)}%`}</Typography.Paragraph>
+      </View>
+      <View className="flex-row items-center gap-3">
+        <Type color={foreground} size={16} strokeWidth={2} />
+        <Host matchContents={{ vertical: true }} style={{ flex: 1 }} colorScheme={dark ? "dark" : "light"}>
+          <Slider
+            value={pending}
+            min={FONT_SIZE_MIN}
+            max={FONT_SIZE_MAX}
+            step={0.05}
+            onValueChange={(next) => setPending(Math.round(next * 20) / 20)}
+          />
+        </Host>
+        <Type color={foreground} size={30} strokeWidth={2} />
+      </View>
+      <Typography.Paragraph style={{ fontSize: 16 * (pending / saved), lineHeight: 24 * (pending / saved) }}>
+        {t("mobile.settings.appearance.fontSizeSample")}
+      </Typography.Paragraph>
+      {changed ? (
+        <View className="flex-row gap-2">
+          <Button
+            variant="primary"
+            className="rounded-full"
+            onPress={() => {
+              void haptics.selection();
+              scales.setTextScale(pending);
+            }}
+          >
+            <Button.Label>{t("mobile.settings.appearance.fontSizeApply")}</Button.Label>
+          </Button>
+          <Button variant="ghost" className="rounded-full" onPress={() => setPending(saved)}>
+            <Button.Label>{t("common.cancel")}</Button.Label>
+          </Button>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function ZoomRow({ dark }: { dark: boolean }) {
+  const { t } = useText();
+  const [zoom] = useState(() => DisplayZoom?.getZoom() ?? 1);
+  const scales = DisplayZoom;
+  if (!scales) return null;
+  return (
+    <ScaleRow
+      dark={dark}
+      label={t("mobile.settings.appearance.zoom")}
+      value={zoom}
+      values={scales.zooms}
+      onChange={(next) => scales.setZoom(next)}
+    />
   );
 }
 
@@ -206,6 +291,7 @@ export function GeneralSettingsScreen() {
         >
           <Typography.Paragraph>{t("mobile.settings.appearance.theme")}</Typography.Paragraph>
         </SettingsRow>
+        <FontSizeRow dark={theme === "dark"} />
         <ZoomRow dark={theme === "dark"} />
       </SettingsSection>
       <LanguageSection dark={theme === "dark"} />

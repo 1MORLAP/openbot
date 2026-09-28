@@ -12,6 +12,18 @@ class DisplayZoomModule : Module() {
       "defaultZoom" to DisplayZoom.defaultZoom,
     )
 
+    Function("getTextScale") {
+      val context = appContext.reactContext ?: return@Function 1f
+      DisplayZoom.textScale(context)
+    }
+
+    // Saves the text scale and restarts the app, like the zoom.
+    Function("setTextScale") { scale: Float ->
+      val activity = appContext.currentActivity ?: return@Function
+      DisplayZoom.saveTextScale(activity, scale)
+      activity.runOnUiThread { DisplayZoom.restart(activity) }
+    }
+
     Function("getZoom") {
       val context = appContext.reactContext ?: return@Function DisplayZoom.defaultZoom
       DisplayZoom.zoom(context)

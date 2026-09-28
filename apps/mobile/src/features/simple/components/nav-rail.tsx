@@ -31,7 +31,7 @@ function RailButton({
         void haptics.selection();
         onPress();
       }}
-      className={`w-16 items-center gap-1 rounded-2xl py-2 ${active ? "bg-foreground" : ""}`}
+      className={`w-20 items-center gap-1 rounded-2xl px-1 py-2 ${active ? "bg-foreground" : ""}`}
       style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
     >
       <Icon color={String(active ? background : foreground)} size={26} strokeWidth={2} />
@@ -39,6 +39,8 @@ function RailButton({
         weight="semibold"
         className={`text-caption ${active ? "text-background" : "text-foreground"}`}
         numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.7}
       >
         {label}
       </Typography>
@@ -54,7 +56,7 @@ export function NavRail() {
   const { openDrawer } = useAppDrawer();
   return (
     <View
-      className="w-20 items-center justify-between border-r border-border bg-background"
+      className="w-24 items-center justify-between border-r border-border bg-background"
       style={{ paddingTop: insets.top + 12, paddingBottom: insets.bottom + 12 }}
     >
       <View className="items-center gap-3">

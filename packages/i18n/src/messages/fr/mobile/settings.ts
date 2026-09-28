@@ -48,7 +48,11 @@ export const messages = {
   "mobile.settings.appearance.eink": "E-ink",
   "mobile.settings.appearance.theme": "Thème",
   "mobile.settings.appearance.zoom": "Zoom",
-  "mobile.settings.appearance.zoomFooter": "Le zoom agrandit toute l’app. Le modifier redémarre l’app.",
+  "mobile.settings.appearance.fontSize": "Taille de police",
+  "mobile.settings.appearance.fontSizeSample": "Portez ce vieux whisky au juge blond qui fume.",
+  "mobile.settings.appearance.fontSizeApply": "Appliquer et redémarrer",
+  "mobile.settings.appearance.zoomFooter":
+    "La taille de police agrandit le texte seul ; le zoom agrandit toute l’app. Modifier l’un ou l’autre redémarre l’app.",
   "mobile.settings.feedback.title": "Retour",
   "mobile.settings.feedback.footer": "Retour tactile pour les actions de l’app sur cet appareil.",
   "mobile.settings.feedback.haptics": "Retour haptique",
