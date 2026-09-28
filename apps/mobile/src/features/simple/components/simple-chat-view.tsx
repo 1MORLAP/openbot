@@ -288,6 +288,8 @@ export function SimpleChatView(props: ChatViewProps) {
   }, [pending, projectedMessages]);
 
   const activity = activityText(props, t);
+  // Being online is the normal state and says nothing; the header only speaks up when the bot is busy or unreachable.
+  const headerStatus = activity ?? (canSend ? null : t("mobile.workspace.status.offline"));
   const canStop = Boolean(props.stopTurn && props.activeTurnId && !stopping);
 
   async function submit() {
@@ -390,9 +392,11 @@ export function SimpleChatView(props: ChatViewProps) {
             <Typography.Paragraph weight="bold" numberOfLines={1}>
               {target.name}
             </Typography.Paragraph>
-            <Typography.Paragraph type="body-sm" numberOfLines={1}>
-              {activity ?? (canSend ? t("mobile.workspace.status.online") : t("mobile.workspace.status.offline"))}
-            </Typography.Paragraph>
+            {headerStatus ? (
+              <Typography.Paragraph type="body-sm" numberOfLines={1}>
+                {headerStatus}
+              </Typography.Paragraph>
+            ) : null}
           </View>
           <IconButton
             label={
