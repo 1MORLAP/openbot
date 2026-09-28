@@ -112,6 +112,7 @@ const host: MobileServer = {
   address: null,
   accent: "",
   publicKey: "key",
+  logoKey: null,
   membershipId: "member",
   role: "member",
 };
