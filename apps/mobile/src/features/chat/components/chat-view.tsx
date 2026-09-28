@@ -85,6 +85,8 @@ export interface ChatViewProps {
 const CHAT_BACK_EDGE_WIDTH = 24;
 
 function leaveConversation(): void {
+  // The composer keeps the keyboard after the screen goes, and the list has no input to close it.
+  Keyboard.dismiss();
   if (router.canGoBack()) router.back();
   else router.replace("/connected");
 }
