@@ -1,15 +1,42 @@
 import { Host, Switch } from "@expo/ui";
-import type { InstalledSkill } from "@openbot/contracts/ipc";
+import { type InstalledSkill, SKILL_CREATION_REQUEST } from "@openbot/contracts/ipc";
 import type { MobileTranslate } from "@openbot/i18n/mobile";
 import { type QueryKey, useQueryClient } from "@tanstack/react-query";
+import { router, Stack } from "expo-router";
 import { Typography } from "heroui-native";
 import { useState } from "react";
 import { Alert } from "react-native";
 import { useUniwind } from "uniwind";
+import { requestComposerText } from "@/features/chat/model/composer-requests";
 import { SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
 import { type MobileAgent, useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import { haptics } from "@/shared/lib/haptics";
+import { isIOS } from "@/shared/lib/platform";
 import { currentText, useText } from "@/shared/lib/text";
+
+/**
+ * The header plus: as on desktop, it puts the skill-creation request in this agent's composer and
+ * closes the sheet. The agent then asks what the skill is for and creates it in the chat.
+ */
+export function CreateSkillAction({ agent }: { agent: MobileAgent }) {
+  const { t } = useText();
+  return (
+    <Stack.Toolbar placement="right">
+      <Stack.Toolbar.Button
+        icon={isIOS ? "plus" : undefined}
+        accessibilityLabel={t("mobile.agent.skill.create")}
+        onPress={() => {
+          void haptics.impact("light");
+          requestComposerText({ serverId: agent.serverId, agentId: agent.id, text: SKILL_CREATION_REQUEST });
+          // Back to the chat under the sheet, or to this agent's chat when the sheet opened from the list.
+          router.dismissTo({ pathname: "/chat/[agentId]", params: { agentId: agent.id } });
+        }}
+      >
+        {isIOS ? undefined : "+"}
+      </Stack.Toolbar.Button>
+    </Stack.Toolbar>
+  );
+}
 
 /**
  * Agent info > Skills. An owner or admin turns a skill on or off and uninstalls it, as in the

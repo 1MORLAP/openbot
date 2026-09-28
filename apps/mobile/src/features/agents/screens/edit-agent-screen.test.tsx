@@ -15,6 +15,7 @@ import {
   type SetEnabledSkillInput,
   type SidebarLayoutAction,
   type SidebarLayoutSnapshot,
+  SKILL_CREATION_REQUEST,
   type StorageUsage,
   type UninstallSkillInput,
   type UpdateAgentAdminSettingsInput,
@@ -28,6 +29,7 @@ import { act, isValidElement, type PropsWithChildren, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, assert, beforeEach, expect, it, vi } from "vitest";
 import type { ChatTarget } from "@/features/chat/model/chat-target";
+import { takeComposerRequest, useComposerRequest } from "@/features/chat/model/composer-requests";
 import { useHapticsPreference } from "@/features/settings/model/haptics";
 import { SheetSaveAction } from "@/shared/components/sheet-save-action";
 import { ChannelHistoryRefreshError, MobileChannelStore } from "../../channels/model/channel-store";
@@ -85,6 +87,7 @@ const mocks = vi.hoisted(() => ({
   uuid: vi.fn(() => "new-agent-seed"),
   push: vi.fn(),
   replace: vi.fn(),
+  dismissTo: vi.fn(),
   dispatch: vi.fn(),
   alert: vi.fn(),
   shareFile: vi.fn(),
@@ -251,7 +254,7 @@ vi.mock("expo-router", () => ({
         ),
     }),
   },
-  router: { push: mocks.push, back: mocks.back, replace: mocks.replace },
+  router: { push: mocks.push, back: mocks.back, replace: mocks.replace, dismissTo: mocks.dismissTo },
   useLocalSearchParams: () => ({
     agentId: "agent-one",
     channelId: "channel-one",
@@ -612,6 +615,7 @@ beforeEach(() => {
   workspace.channelStore = createChannelStore();
   channelRequests.mockClear();
   mocks.replace.mockClear();
+  mocks.dismissTo.mockClear();
   mocks.recordId = "";
   mocks.blocked = false;
   mocks.leave = () => {};
@@ -867,6 +871,28 @@ it("lets an admin turn a skill off and on, and puts the old state back when the 
   await act(() => fireEvent.click(screen.getByRole("switch", { name: "Writer" })));
   await screen.findByText("Sign in to the marketplace on the host.");
   expect(screen.getByRole("switch", { name: "Writer" })).toHaveProperty("checked", false);
+});
+
+it("lets an admin start a new skill in the agent chat, as on desktop", async () => {
+  await renderSheet("skills");
+  expect(screen.queryByRole("button", { name: "Create skill" })).toBeNull();
+
+  await act(() => root.unmount());
+  root = createRoot(container);
+  client.clear();
+  workspace.servers = [{ ...host, role: "admin" }];
+  workspace.canManageAgentSkills.mockReturnValue(true);
+  await renderSheet("skills");
+  await click("Create skill");
+  expect(useComposerRequest.getState().request).toEqual({
+    serverId: original.serverId,
+    agentId: original.id,
+    text: SKILL_CREATION_REQUEST,
+  });
+  expect(mocks.dismissTo).toHaveBeenCalledWith({ pathname: "/chat/[agentId]", params: { agentId: original.id } });
+  expect(takeComposerRequest("other-host", original.id)).toBeNull();
+  expect(takeComposerRequest(original.serverId, original.id)).toBe(SKILL_CREATION_REQUEST);
+  expect(useComposerRequest.getState().request).toBeNull();
 });
 
 it("uninstalls a skill after confirmation and keeps it when the host refuses", async () => {

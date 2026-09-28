@@ -14,7 +14,7 @@ import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
 import { AgentFiles } from "./agent-files";
 import { MemoryEditor, RoutineEditor } from "./agent-record-editor";
-import { AgentSkills } from "./agent-skills";
+import { AgentSkills, CreateSkillAction } from "./agent-skills";
 import { AgentUsageReport } from "./agent-usage-report";
 
 type ListKind = "usage" | "memories" | "routines" | "skills" | "files";
@@ -335,6 +335,7 @@ export function AgentInformation({
       ) : null}
       {section === "skills" ? (
         <>
+          {available && manageSkills ? <CreateSkillAction agent={agent} /> : null}
           <InformationSection
             kind="skills"
             list

@@ -115,7 +115,8 @@ export const messages = defineMessages("mobile.agent", {
   "mobile.agent.info.skillsUnsupported": "This host does not support skills. Update OpenBot on the host.",
   "mobile.agent.info.noSkills": "No skills yet.",
   "mobile.agent.info.skillsManaged": "Skills for this agent are managed on the host.",
-  "mobile.agent.info.skillsAddOnComputer": "Add skills in OpenBot on a computer or in the web app.",
+  "mobile.agent.info.skillsAddOnComputer":
+    "Use + to create a skill with this agent. Add marketplace skills in OpenBot on a computer or in the web app.",
   "mobile.agent.info.filesUnsupported": "This host does not support file management. Update OpenBot on the host.",
   "mobile.agent.info.memoryGone": "This memory is no longer available.",
   "mobile.agent.info.routineGone": "This routine is no longer available.",
@@ -124,6 +125,7 @@ export const messages = defineMessages("mobile.agent", {
   "mobile.agent.skill.needsRepair": "Needs repair",
   "mobile.agent.skill.modified": "Modified",
   "mobile.agent.skill.disabled": "Disabled",
+  "mobile.agent.skill.create": "Create skill",
   "mobile.agent.skill.uninstall": "Uninstall",
   "mobile.agent.skill.uninstallNamed": "Uninstall {name}",
   "mobile.agent.skill.uninstallTitle": "Uninstall {name}?",

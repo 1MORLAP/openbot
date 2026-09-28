@@ -116,7 +116,8 @@ export const messages = {
   "mobile.agent.info.skillsUnsupported": "このホストはスキルに対応していません。ホストの OpenBot を更新してください。",
   "mobile.agent.info.noSkills": "スキルはまだありません。",
   "mobile.agent.info.skillsManaged": "このエージェントのスキルはホストで管理されています。",
-  "mobile.agent.info.skillsAddOnComputer": "スキルはコンピューターの OpenBot か Web アプリで追加します。",
+  "mobile.agent.info.skillsAddOnComputer":
+    "+ を使うと、このエージェントとスキルを作成できます。マーケットプレイスのスキルは、コンピューターの OpenBot か Web アプリで追加します。",
   "mobile.agent.info.filesUnsupported":
     "このホストはファイル管理に対応していません。ホストの OpenBot を更新してください。",
   "mobile.agent.info.memoryGone": "このメモリーは利用できなくなりました。",
@@ -126,6 +127,7 @@ export const messages = {
   "mobile.agent.skill.needsRepair": "修復が必要",
   "mobile.agent.skill.modified": "変更済み",
   "mobile.agent.skill.disabled": "無効",
+  "mobile.agent.skill.create": "スキルを作成",
   "mobile.agent.skill.uninstall": "アンインストール",
   "mobile.agent.skill.uninstallNamed": "{name} をアンインストール",
   "mobile.agent.skill.uninstallTitle": "{name} をアンインストールしますか？",

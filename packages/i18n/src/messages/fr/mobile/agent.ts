@@ -119,7 +119,7 @@ export const messages = {
   "mobile.agent.info.noSkills": "Aucune compétence pour l’instant.",
   "mobile.agent.info.skillsManaged": "Les compétences de cet agent sont gérées sur l’hôte.",
   "mobile.agent.info.skillsAddOnComputer":
-    "Ajoutez des compétences dans OpenBot sur un ordinateur ou dans l’application web.",
+    "Utilisez + pour créer une compétence avec cet agent. Ajoutez des compétences du marketplace dans OpenBot sur un ordinateur ou dans l’application web.",
   "mobile.agent.info.filesUnsupported":
     "Cet hôte ne prend pas en charge la gestion des fichiers. Mettez à jour OpenBot sur l’hôte.",
   "mobile.agent.info.memoryGone": "Ce souvenir n’est plus disponible.",
@@ -129,6 +129,7 @@ export const messages = {
   "mobile.agent.skill.needsRepair": "Réparation nécessaire",
   "mobile.agent.skill.modified": "Modifiée",
   "mobile.agent.skill.disabled": "Désactivée",
+  "mobile.agent.skill.create": "Créer une compétence",
   "mobile.agent.skill.uninstall": "Désinstaller",
   "mobile.agent.skill.uninstallNamed": "Désinstaller {name}",
   "mobile.agent.skill.uninstallTitle": "Désinstaller {name} ?",
