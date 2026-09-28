@@ -110,3 +110,19 @@
     --font-mono: monospace;
   }
 }
+
+/*
+ * HeroUI gives body text a fixed line height. The font size setting scales --text-*, so the
+ * line height follows the size instead of clipping large text.
+ */
+.text__root--type-body {
+  line-height: calc(var(--text-base) * 1.75);
+}
+
+.text__root--type-body-sm {
+  line-height: calc(var(--text-sm) * 1.7);
+}
+
+.text__root--type-body-xs {
+  line-height: calc(var(--text-xs) * 1.65);
+}

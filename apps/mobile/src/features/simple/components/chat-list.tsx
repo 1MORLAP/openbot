@@ -135,7 +135,7 @@ function HeaderButton({ label, onPress, children }: { label: string; onPress: ()
         void haptics.selection();
         onPress();
       }}
-      className="size-12 items-center justify-center rounded-full border border-border"
+      className="size-10 items-center justify-center rounded-full border border-border"
       style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
     >
       {children}
@@ -216,7 +216,7 @@ export function SimpleChatList({ phone = false }: { phone?: boolean }) {
         </View>
         {phone ? (
           <HeaderButton label={t("mobile.workspace.shell.search")} onPress={() => router.push("/search-agents")}>
-            <Search color={foreground} size={24} strokeWidth={2} />
+            <Search color={foreground} size={20} strokeWidth={2} />
           </HeaderButton>
         ) : null}
         <MenuView
@@ -234,20 +234,20 @@ export function SimpleChatList({ phone = false }: { phone?: boolean }) {
               router.push({ pathname: "/section-form", params: { serverId: activeServer.id } });
             if (nativeEvent.event === "hidden-chats") router.push("/hidden-chats");
           }}
-          style={{ height: 48, width: 48 }}
+          style={{ height: 40, width: 40 }}
         >
           <View
             accessible
             accessibilityRole="button"
             accessibilityLabel={t("mobile.agent.home.chatOptions")}
-            className="size-12 items-center justify-center rounded-full border border-border"
+            className="size-10 items-center justify-center rounded-full border border-border"
           >
-            <Plus color={foreground} size={26} strokeWidth={2} />
+            <Plus color={foreground} size={22} strokeWidth={2} />
           </View>
         </MenuView>
         {phone ? (
           <HeaderButton label={t("mobile.workspace.shell.settings")} onPress={() => router.push("/settings")}>
-            <Settings color={foreground} size={24} strokeWidth={2} />
+            <Settings color={foreground} size={20} strokeWidth={2} />
           </HeaderButton>
         ) : null}
       </View>

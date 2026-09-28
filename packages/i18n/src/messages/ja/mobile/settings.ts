@@ -50,9 +50,8 @@ export const messages = {
   "mobile.settings.appearance.zoom": "ズーム",
   "mobile.settings.appearance.fontSize": "フォントサイズ",
   "mobile.settings.appearance.fontSizeSample": "いろはにほへと ちりぬるを わかよたれそ",
-  "mobile.settings.appearance.fontSizeApply": "適用して再起動",
   "mobile.settings.appearance.zoomFooter":
-    "フォントサイズは文字だけを、ズームはアプリ全体を拡大します。どちらかを変更するとアプリが再起動します。",
+    "フォントサイズは文字だけをすぐに変えます。ズームはアプリ全体を拡大し、再起動します。",
   "mobile.settings.feedback.title": "フィードバック",
   "mobile.settings.feedback.footer": "このデバイスでのアプリ操作の触覚フィードバックです。",
   "mobile.settings.feedback.haptics": "触覚フィードバック",

@@ -37,7 +37,9 @@ function RailButton({
       <Icon color={String(active ? background : foreground)} size={26} strokeWidth={2} />
       <Typography
         weight="semibold"
-        className={`text-caption ${active ? "text-background" : "text-foreground"}`}
+        className={active ? "text-background" : "text-foreground"}
+        // The rail keeps its size: the font size setting is for reading, not navigation.
+        style={{ fontSize: 16, lineHeight: 20 }}
         numberOfLines={1}
         adjustsFontSizeToFit
         minimumFontScale={0.7}

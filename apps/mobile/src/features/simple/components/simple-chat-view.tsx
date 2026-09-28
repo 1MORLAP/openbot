@@ -16,6 +16,7 @@ import type { ChatViewProps } from "@/features/chat/components/chat-view";
 import { useVoiceDictation } from "@/features/chat/components/use-voice-dictation";
 import { mentionDraft } from "@/features/chat/model/chat-mentions";
 import type { ChatMessage } from "@/features/chat/model/chat-messages";
+import { useFontScale } from "@/features/settings/model/font-size";
 import { toggleDetailsPane, usePaneLayout } from "@/features/workspace/components/split-layout";
 import type { MobileAgent } from "@/features/workspace/context/mobile-workspace-context";
 import { haptics } from "@/shared/lib/haptics";
@@ -52,7 +53,7 @@ function IconButton({
         onPress();
       }}
       className={`items-center justify-center rounded-full border-2 ${filled ? "border-foreground bg-foreground" : "border-border bg-background"}`}
-      style={({ pressed }) => ({ width: 52, height: 52, opacity: disabled ? 0.4 : pressed ? 0.6 : 1 })}
+      style={({ pressed }) => ({ width: 44, height: 44, opacity: disabled ? 0.4 : pressed ? 0.6 : 1 })}
     >
       {children}
     </Pressable>
@@ -208,6 +209,8 @@ export function SimpleChatView(props: ChatViewProps) {
   const insets = useSafeAreaInsets();
   const [foreground, background] = useThemeColor(["foreground", "background"]);
   const colors = { foreground: String(foreground), background: String(background) };
+  // The composer is a native input outside the type scale, so it follows the font size itself.
+  const fontScale = useFontScale();
   const { split, detailsOpen } = usePaneLayout();
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -317,7 +320,7 @@ export function SimpleChatView(props: ChatViewProps) {
             label={t("common.back")}
             onPress={() => (router.canGoBack() ? router.back() : router.replace("/connected"))}
           >
-            <ArrowLeft color={colors.foreground} size={26} strokeWidth={2} />
+            <ArrowLeft color={colors.foreground} size={22} strokeWidth={2} />
           </IconButton>
         )}
         {target.kind === "agent" ? (
@@ -350,7 +353,7 @@ export function SimpleChatView(props: ChatViewProps) {
           onPress={openInfo}
           filled={split && detailsOpen}
         >
-          <Info color={split && detailsOpen ? colors.background : colors.foreground} size={24} strokeWidth={2} />
+          <Info color={split && detailsOpen ? colors.background : colors.foreground} size={20} strokeWidth={2} />
         </IconButton>
       </View>
 
@@ -449,7 +452,7 @@ export function SimpleChatView(props: ChatViewProps) {
               disabled={!canSend}
               filled={listening}
             >
-              <Mic color={listening ? colors.background : colors.foreground} size={26} strokeWidth={2} />
+              <Mic color={listening ? colors.background : colors.foreground} size={22} strokeWidth={2} />
             </IconButton>
           ) : null}
           <TextInput
@@ -466,7 +469,14 @@ export function SimpleChatView(props: ChatViewProps) {
             }
             placeholderTextColor={colors.foreground}
             className="min-w-0 flex-1 rounded-3xl border-2 border-border px-5 py-3 text-body text-foreground"
-            style={{ minHeight: 52, maxHeight: 220, borderRadius: 26, textAlignVertical: "top" }}
+            style={{
+              minHeight: 48,
+              maxHeight: 220,
+              borderRadius: 24,
+              fontSize: 16 * fontScale,
+              lineHeight: 24 * fontScale,
+              textAlignVertical: "top",
+            }}
             accessibilityLabel={t("mobile.chat.composer.ask", { name: target.name })}
           />
           <IconButton
@@ -475,7 +485,7 @@ export function SimpleChatView(props: ChatViewProps) {
             disabled={!canSend || sending || (!draft.trim() && !listening)}
             filled
           >
-            <Send color={colors.background} size={24} strokeWidth={2} />
+            <Send color={colors.background} size={20} strokeWidth={2} />
           </IconButton>
         </View>
       )}

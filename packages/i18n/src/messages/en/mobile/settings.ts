@@ -48,9 +48,8 @@ export const messages = defineMessages("mobile.settings", {
   "mobile.settings.appearance.zoom": "Zoom",
   "mobile.settings.appearance.fontSize": "Font size",
   "mobile.settings.appearance.fontSizeSample": "The quick brown fox jumps over the lazy dog.",
-  "mobile.settings.appearance.fontSizeApply": "Apply and restart",
   "mobile.settings.appearance.zoomFooter":
-    "Font size enlarges text only; Zoom scales the whole app. Changing either restarts the app.",
+    "Font size changes text only and applies at once. Zoom scales the whole app and restarts it.",
   "mobile.settings.feedback.title": "Feedback",
   "mobile.settings.feedback.footer": "Touch feedback for actions in the app on this device.",
   "mobile.settings.feedback.haptics": "Haptics",

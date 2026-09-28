@@ -1,7 +1,7 @@
 import { Host, Picker, Slider, Switch } from "@expo/ui";
 import { APP_LANGUAGE_OPTIONS } from "@openbot/i18n/languages";
 import { router } from "expo-router";
-import { Button, Typography } from "heroui-native";
+import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
 import { Type } from "lucide-react-native";
 import { useEffect, useState } from "react";
@@ -17,6 +17,7 @@ import {
   saveDictationLanguage,
   useDictationLanguage,
 } from "@/features/settings/model/dictation-language";
+import { FONT_SIZE_MAX, FONT_SIZE_MIN, saveFontSize, useFontSize } from "@/features/settings/model/font-size";
 import { saveHapticsPreference, useHapticsPreference } from "@/features/settings/model/haptics";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import { haptics } from "@/shared/lib/haptics";
@@ -61,60 +62,37 @@ function ScaleRow({
   );
 }
 
-const FONT_SIZE_MIN = 0.7;
-const FONT_SIZE_MAX = 2;
-
 /**
- * Font size as a slider from small to large A, like iOS. The sample line previews the size while
- * dragging; Apply restarts the app, because Android lays out text at the new size only then.
+ * Font size as a slider from small to large, like iOS. It applies while dragging and scales text
+ * only, so the sample line and the whole app follow the thumb.
  */
 function FontSizeRow({ dark }: { dark: boolean }) {
   const { t } = useText();
-  const [saved] = useState(() => DisplayZoom?.getTextScale() ?? 1);
-  const [pending, setPending] = useState(saved);
+  const value = useFontSize((state) => state.value);
   const foreground = String(useThemeColor("foreground"));
-  const scales = DisplayZoom;
-  if (!scales) return null;
-  const changed = Math.abs(pending - saved) > 0.001;
   return (
     <View className="gap-3 px-4 py-3">
       <View className="flex-row items-center justify-between">
         <Typography.Paragraph>{t("mobile.settings.appearance.fontSize")}</Typography.Paragraph>
-        <Typography.Paragraph weight="semibold">{`${Math.round(pending * 100)}%`}</Typography.Paragraph>
+        <Typography.Paragraph weight="semibold">{`${Math.round(value * 100)}%`}</Typography.Paragraph>
       </View>
       <View className="flex-row items-center gap-3">
         <Type color={foreground} size={16} strokeWidth={2} />
         <Host matchContents={{ vertical: true }} style={{ flex: 1 }} colorScheme={dark ? "dark" : "light"}>
           <Slider
-            value={pending}
+            value={value}
             min={FONT_SIZE_MIN}
             max={FONT_SIZE_MAX}
             step={0.05}
-            onValueChange={(next) => setPending(Math.round(next * 20) / 20)}
+            onValueChange={(next) => {
+              const rounded = Math.round(next * 20) / 20;
+              if (rounded !== value) void saveFontSize(rounded).catch(() => undefined);
+            }}
           />
         </Host>
         <Type color={foreground} size={30} strokeWidth={2} />
       </View>
-      <Typography.Paragraph style={{ fontSize: 16 * (pending / saved), lineHeight: 24 * (pending / saved) }}>
-        {t("mobile.settings.appearance.fontSizeSample")}
-      </Typography.Paragraph>
-      {changed ? (
-        <View className="flex-row gap-2">
-          <Button
-            variant="primary"
-            className="rounded-full"
-            onPress={() => {
-              void haptics.selection();
-              scales.setTextScale(pending);
-            }}
-          >
-            <Button.Label>{t("mobile.settings.appearance.fontSizeApply")}</Button.Label>
-          </Button>
-          <Button variant="ghost" className="rounded-full" onPress={() => setPending(saved)}>
-            <Button.Label>{t("common.cancel")}</Button.Label>
-          </Button>
-        </View>
-      ) : null}
+      <Typography.Paragraph>{t("mobile.settings.appearance.fontSizeSample")}</Typography.Paragraph>
     </View>
   );
 }

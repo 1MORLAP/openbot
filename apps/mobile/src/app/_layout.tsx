@@ -19,6 +19,7 @@ import { MobileSessionProvider, useMobileSession } from "@/features/auth/context
 import { loadAppLanguage } from "@/features/settings/model/app-language";
 import { loadAppearance, useAppearance } from "@/features/settings/model/appearance";
 import { loadDictationLanguage } from "@/features/settings/model/dictation-language";
+import { loadFontSize } from "@/features/settings/model/font-size";
 import { loadHapticsPreference } from "@/features/settings/model/haptics";
 import { AppLoadingOverlayProvider, useAppLoadingOverlay } from "@/shared/components/app-loading-overlay";
 import { BloubAnimationProvider } from "@/shared/components/bloub-loader";
@@ -167,6 +168,7 @@ export default function RootLayout() {
   const navigationTheme = colorScheme === "dark" ? darkTheme : colorScheme === "eink" ? einkTheme : DefaultTheme;
   useEffect(() => {
     void loadAppearance().catch(() => undefined);
+    void loadFontSize().catch(() => undefined);
     void loadHapticsPreference().catch(() => undefined);
     void loadDictationLanguage().catch(() => undefined);
     void loadAppLanguage().catch(() => undefined);
